@@ -5,9 +5,10 @@ import { getSession } from "@/lib/getSession";
 // GET /api/sections/[id]/role - Get user's role in a section
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,7 +18,7 @@ export async function GET(
             .from("user_sections")
             .select("role")
             .eq("user_id", session.user.id)
-            .eq("section_id", params.id)
+            .eq("section_id", id)
             .single();
 
         if (!userSection) {

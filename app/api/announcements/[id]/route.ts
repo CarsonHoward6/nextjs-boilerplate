@@ -5,9 +5,10 @@ import { getSession } from "@/lib/getSession";
 // PUT /api/announcements/[id]
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,7 +21,7 @@ export async function PUT(
         const { data: announcement } = await supabase
             .from("announcements")
             .select("author_id")
-            .eq("id", params.id)
+            .eq("id", id)
             .single();
 
         if (!announcement) {
@@ -44,7 +45,7 @@ export async function PUT(
         const { data: updated, error } = await supabase
             .from("announcements")
             .update(updateData)
-            .eq("id", params.id)
+            .eq("id", id)
             .select(`
                 *,
                 author:author_id (
@@ -70,9 +71,10 @@ export async function PUT(
 // DELETE /api/announcements/[id]
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,7 +84,7 @@ export async function DELETE(
         const { data: announcement } = await supabase
             .from("announcements")
             .select("author_id")
-            .eq("id", params.id)
+            .eq("id", id)
             .single();
 
         if (!announcement) {
@@ -100,7 +102,7 @@ export async function DELETE(
         const { error } = await supabase
             .from("announcements")
             .delete()
-            .eq("id", params.id);
+            .eq("id", id);
 
         if (error) {
             console.error("Error deleting announcement:", error);

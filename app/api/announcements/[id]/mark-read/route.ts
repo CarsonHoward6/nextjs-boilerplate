@@ -5,9 +5,10 @@ import { getSession } from "@/lib/getSession";
 // POST /api/announcements/[id]/mark-read
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,7 +18,7 @@ export async function POST(
         const { data: announcement } = await supabase
             .from("announcements")
             .select("section_id")
-            .eq("id", params.id)
+            .eq("id", id)
             .single();
 
         if (!announcement) {
@@ -44,7 +45,7 @@ export async function POST(
             .from("announcement_reads")
             .upsert(
                 {
-                    announcement_id: params.id,
+                    announcement_id: id,
                     user_id: session.user.id,
                     read_at: new Date().toISOString()
                 },

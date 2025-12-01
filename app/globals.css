@@ -109,7 +109,7 @@ html {
 }
 
 .header-login-icon:hover {
-    background: #5f7a39;
+    background: var(--site-primary);
     color: white;
     transform: scale(1.05);
 }
@@ -215,7 +215,7 @@ html {
 }
 
 .hamburger-btn:hover {
-    background: #5f7a39;
+    background: var(--site-primary);
     color: white;
     transform: scale(1.05);
 }
