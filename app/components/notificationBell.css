@@ -223,65 +223,65 @@
 }
 
 /* Dark Mode Support */
-:global(.dark-mode) .notification-dropdown {
+.dark-mode .notification-dropdown {
     background: rgba(28, 28, 30, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-:global(.dark-mode) .notification-dropdown-header {
+.dark-mode .notification-dropdown-header {
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-:global(.dark-mode) .notification-dropdown-header h3 {
+.dark-mode .notification-dropdown-header h3 {
     color: #f5f5f7;
 }
 
-:global(.dark-mode) .notification-mark-all-read {
+.dark-mode .notification-mark-all-read {
     color: #007aff;
 }
 
-:global(.dark-mode) .notification-mark-all-read:hover {
+.dark-mode .notification-mark-all-read:hover {
     background: rgba(0, 122, 255, 0.12);
 }
 
-:global(.dark-mode) .notification-empty {
+.dark-mode .notification-empty {
     color: #86868b;
 }
 
-:global(.dark-mode) .notification-item {
+.dark-mode .notification-item {
     border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
-:global(.dark-mode) .notification-item:hover {
+.dark-mode .notification-item:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
-:global(.dark-mode) .notification-item.unread {
+.dark-mode .notification-item.unread {
     background: rgba(0, 122, 255, 0.08);
 }
 
-:global(.dark-mode) .notification-item.unread:hover {
+.dark-mode .notification-item.unread:hover {
     background: rgba(0, 122, 255, 0.12);
 }
 
-:global(.dark-mode) .notification-title {
+.dark-mode .notification-title {
     color: #f5f5f7;
 }
 
-:global(.dark-mode) .notification-message {
+.dark-mode .notification-message {
     color: #f5f5f7;
 }
 
-:global(.dark-mode) .notification-time {
+.dark-mode .notification-time {
     color: #86868b;
 }
 
-:global(.dark-mode) .notification-bell-button {
+.dark-mode .notification-bell-button {
     background: rgba(255, 255, 255, 0.08);
     color: #f5f5f7;
 }
 
-:global(.dark-mode) .notification-bell-button:hover {
+.dark-mode .notification-bell-button:hover {
     background: var(--site-primary, #5f7a39);
     color: white;
 }
