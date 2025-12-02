@@ -36,7 +36,7 @@ async function fixRLSPolicies() {
             console.log(`Trying alternative approach for ${table}...`);
 
             // Since we can't directly execute DDL, we'll use the REST API to check table status
-            const { data, error: checkError } = await supabase
+            const { error: checkError } = await supabase
                 .from(table)
                 .select('*')
                 .limit(1);

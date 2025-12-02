@@ -7,14 +7,14 @@ type ColorScheme = "indigo" | "green" | "blue" | "purple" | "orange";
 
 export default function DisplaySettingsPage() {
     const { theme, setTheme, fontSize, setFontSize, siteTheme, setSiteTheme } = useTheme();
-    const [colorScheme, setColorScheme] = useState<ColorScheme>("indigo");
+    const [colorScheme, setColorScheme] = useState<ColorScheme>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("colorScheme") as ColorScheme;
+            return saved || "indigo";
+        }
+        return "indigo";
+    });
     const [saved, setSaved] = useState(false);
-
-    // Load color scheme from localStorage on mount
-    useEffect(() => {
-        const savedColorScheme = localStorage.getItem("colorScheme") as ColorScheme;
-        if (savedColorScheme) setColorScheme(savedColorScheme);
-    }, []);
 
     // Apply color scheme
     useEffect(() => {

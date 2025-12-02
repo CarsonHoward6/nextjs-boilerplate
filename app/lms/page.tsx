@@ -1,11 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./lms.module.css";
 import { useAuth } from "@/app/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import Announcements from "@/app/components/Announcements";
+
+interface Section {
+    id: string;
+    title: string;
+    course_id: string;
+    year: number;
+    semester: string;
+    teachers?: {
+        user_id: string;
+        user_profiles?: {
+            full_name?: string;
+            email?: string;
+        };
+    }[];
+}
+
+interface UserSection {
+    section_id: string;
+    role: string;
+    user_id?: string;
+    section?: {
+        id: string;
+        title: string;
+        course_id: string;
+        year: number;
+        semester: string;
+    };
+}
 
 // --- Mock data (replace with API later) ---
 const initialCourses = [
@@ -173,15 +201,16 @@ export default function LMSPage() {
     const [courses, setCourses] = useState(initialCourses);
     const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
     const [selectedPage, setSelectedPage] = useState<number | null>(null);
-    const [userSections, setUserSections] = useState<any[]>([]);
+    const [userSections, setUserSections] = useState<UserSection[]>([]);
     const [availableCourses, setAvailableCourses] = useState<number[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
 
     const [showAnnouncements, setShowAnnouncements] = useState(false);
-    const [selectedSectionForAnnouncements, setSelectedSectionForAnnouncements] = useState<any>(null);
+    const [selectedSectionForAnnouncements, setSelectedSectionForAnnouncements] = useState<Section | null>(null);
     const [announcementsUnreadCount, setAnnouncementsUnreadCount] = useState<Record<string, number>>({});
 
     const ADMIN_EMAIL = "carsonhoward6@gmail.com";
@@ -194,14 +223,7 @@ export default function LMSPage() {
         }
     }, [user, loading, router]);
 
-    // Fetch user's assigned sections/classes
-    useEffect(() => {
-        if (user && !loading) {
-            fetchUserSections();
-        }
-    }, [user, loading]);
-
-    async function fetchUserSections() {
+    const fetchUserSections = useCallback(async () => {
         if (!user) return;
 
         setLoadingCourses(true);
@@ -265,10 +287,20 @@ export default function LMSPage() {
         }
 
         setLoadingCourses(false);
-    }
+    }, [user, isAdmin]);
+
+    // Fetch user's assigned sections/classes
+    useEffect(() => {
+        if (user && !loading) {
+            fetchUserSections();
+        }
+    }, [user, loading, fetchUserSections]);
+
+    // Get sections for current course
+    const [courseSections, setCourseSections] = useState<Section[]>([]);
 
     // Get sections for selected course with teacher info
-    async function getSectionsForCourse(courseId: number) {
+    const getSectionsForCourse = useCallback(async (courseId: number) => {
         if (!courseId) return [];
 
         // Get all sections for this course with teachers
@@ -308,10 +340,7 @@ export default function LMSPage() {
             const userSectionIds = userSections.map(s => s.section_id);
             return sectionsWithTeachers.filter(s => userSectionIds.includes(s.id));
         }
-    }
-
-    // Get sections for current course
-    const [courseSections, setCourseSections] = useState<any[]>([]);
+    }, [isAdmin, userSections]);
 
     useEffect(() => {
         if (selectedCourse) {
@@ -319,7 +348,7 @@ export default function LMSPage() {
         } else {
             setCourseSections([]);
         }
-    }, [selectedCourse, userSections]);
+    }, [selectedCourse, getSectionsForCourse]);
 
     // -------------------------------
     // Helpers
@@ -413,7 +442,22 @@ export default function LMSPage() {
             {/* LAYOUT */}
             <div className={styles.container}>
                 {/* LEFT SIDEBAR */}
-                <aside className={styles.left}>
+                <aside className={`${styles.left} ${isSidebarCollapsed ? styles.leftCollapsed : ''}`}>
+                    {/* Collapse Toggle Button */}
+                    <button
+                        className={styles.collapseBtn}
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            {isSidebarCollapsed ? (
+                                <polyline points="9 18 15 12 9 6" />
+                            ) : (
+                                <polyline points="15 18 9 12 15 6" />
+                            )}
+                        </svg>
+                    </button>
+
                     <div className={styles.dropdown}>
                         <select
                             className={styles.select}
@@ -450,7 +494,7 @@ export default function LMSPage() {
                                     </div>
                                     {section.teachers && section.teachers.length > 0 && (
                                         <div style={{ fontSize: "12px", marginTop: "4px", color: "var(--text-secondary, #666)" }}>
-                                            Teacher: {section.teachers.map((t: any) => t.user_profiles?.full_name || t.user_profiles?.email).join(", ")}
+                                            Teacher: {section.teachers.map(t => t.user_profiles?.full_name || t.user_profiles?.email).join(", ")}
                                         </div>
                                     )}
                                     <button

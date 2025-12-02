@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -64,22 +64,41 @@ export default function AdminPage() {
         }
     }, [user, loading, router]);
 
-    // Fetch all data
-    useEffect(() => {
-        if (user?.email === ADMIN_EMAIL) {
-            fetchData();
-        }
-    }, [user]);
+    const fetchLoginNotifications = useCallback(async () => {
+        try {
+            // Get all auth users with their last sign in times via API route
+            const response = await fetch("/api/admin/users");
+            const data = await response.json();
 
-    // Poll for login notifications every 30 seconds
-    useEffect(() => {
-        if (user?.email === ADMIN_EMAIL) {
-            const interval = setInterval(fetchLoginNotifications, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [user]);
+            if (data.users) {
+                interface AuthUser {
+                    id: string;
+                    email?: string;
+                    last_sign_in_at?: string;
+                }
 
-    async function fetchData() {
+                const notifications = data.users
+                    .filter((u: AuthUser) => u.last_sign_in_at) // Only users who have logged in
+                    .sort((a: AuthUser, b: AuthUser) => {
+                        const timeA = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+                        const timeB = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+                        return timeB - timeA; // Most recent first
+                    })
+                    .slice(0, 20) // Get last 20 logins
+                    .map((u: AuthUser, index: number) => ({
+                        id: `${index}-${u.id}`,
+                        email: u.email || "Unknown",
+                        timestamp: u.last_sign_in_at || ""
+                    }));
+
+                setLoginNotifications(notifications);
+            }
+        } catch (err) {
+            console.error("Error fetching login notifications:", err);
+        }
+    }, []);
+
+    const fetchData = useCallback(async () => {
         setLoadingData(true);
         setError(null);
 
@@ -93,9 +112,16 @@ export default function AdminPage() {
                 setError("Failed to load users from authentication system");
                 setUsers([]);
             } else if (data.users) {
+                interface AuthUser {
+                    id: string;
+                    email?: string;
+                    created_at: string;
+                    last_sign_in_at?: string;
+                }
+
                 // Process all authenticated users
                 const usersWithDetails = await Promise.all(
-                    data.users.map(async (authUser: any) => {
+                    data.users.map(async (authUser: AuthUser) => {
                         // Get profile if exists
                         const { data: profile } = await supabase
                             .from("user_profiles")
@@ -181,35 +207,22 @@ export default function AdminPage() {
         }
 
         setLoadingData(false);
-    }
+    }, [fetchLoginNotifications]);
 
-    async function fetchLoginNotifications() {
-        try {
-            // Get all auth users with their last sign in times via API route
-            const response = await fetch("/api/admin/users");
-            const data = await response.json();
-
-            if (data.users) {
-                const notifications = data.users
-                    .filter((u: any) => u.last_sign_in_at) // Only users who have logged in
-                    .sort((a: any, b: any) => {
-                        const timeA = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
-                        const timeB = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
-                        return timeB - timeA; // Most recent first
-                    })
-                    .slice(0, 20) // Get last 20 logins
-                    .map((u: any, index: number) => ({
-                        id: `${index}-${u.id}`,
-                        email: u.email || "Unknown",
-                        timestamp: u.last_sign_in_at || ""
-                    }));
-
-                setLoginNotifications(notifications);
-            }
-        } catch (err) {
-            console.error("Error fetching login notifications:", err);
+    // Fetch all data
+    useEffect(() => {
+        if (user?.email === ADMIN_EMAIL) {
+            fetchData();
         }
-    }
+    }, [user, fetchData, ADMIN_EMAIL]);
+
+    // Poll for login notifications every 30 seconds
+    useEffect(() => {
+        if (user?.email === ADMIN_EMAIL) {
+            const interval = setInterval(fetchLoginNotifications, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user, fetchLoginNotifications, ADMIN_EMAIL]);
 
     async function addRole(userId: string, role: UserRole) {
         const userEmail = users.find(u => u.id === userId)?.email;

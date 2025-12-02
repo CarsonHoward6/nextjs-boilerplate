@@ -35,6 +35,60 @@
     border-right: 0.5px solid rgba(0, 0, 0, 0.1);
     overflow-y: auto;
     flex-shrink: 0;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.28, 0.11, 0.32, 1);
+}
+
+.leftCollapsed {
+    width: 60px;
+    padding: 24px 10px;
+}
+
+.leftCollapsed .dropdown,
+.leftCollapsed .pageList,
+.leftCollapsed > div {
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+.leftCollapsed .collapseBtn {
+    opacity: 1;
+    visibility: visible;
+    height: 36px;
+    width: 36px;
+}
+
+/* Collapse Button */
+.collapseBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.04);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: #1d1d1f;
+    margin: 0 0 20px auto;
+    flex-shrink: 0;
+}
+
+.collapseBtn:hover {
+    background: var(--site-primary, #5f7a39);
+    color: white;
+    transform: scale(1.05);
+}
+
+.collapseBtn:active {
+    transform: scale(0.98);
+}
+
+.leftCollapsed .collapseBtn {
+    margin: 0 auto 20px auto;
 }
 
 .dropdown {
@@ -510,4 +564,14 @@
 
 :global(.dark-mode) .loading {
     color: #86868b;
+}
+
+:global(.dark-mode) .collapseBtn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+}
+
+:global(.dark-mode) .collapseBtn:hover {
+    background: var(--site-primary, #5f7a39);
+    color: white;
 }
