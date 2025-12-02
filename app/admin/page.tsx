@@ -136,6 +136,17 @@ export default function AdminPage() {
                             .eq("user_id", authUser.id);
 
                         // Get sections
+                        interface SectionWithCourse {
+                            section_id: string;
+                            section: {
+                                id: string;
+                                title: string;
+                                course: {
+                                    title: string;
+                                }[];
+                            }[];
+                        }
+
                         const { data: sectionsData } = await supabase
                             .from("user_sections")
                             .select(`
@@ -148,7 +159,7 @@ export default function AdminPage() {
                                     )
                                 )
                             `)
-                            .eq("user_id", authUser.id);
+                            .eq("user_id", authUser.id) as { data: SectionWithCourse[] | null };
 
                         return {
                             id: authUser.id,
@@ -157,11 +168,15 @@ export default function AdminPage() {
                             created_at: authUser.created_at,
                             last_sign_in_at: authUser.last_sign_in_at,
                             roles: rolesData?.map(r => r.role) || [],
-                            sections: sectionsData?.map(s => ({
-                                id: s.section?.id || "",
-                                title: s.section?.title || "",
-                                course: s.section?.course?.title || ""
-                            })).filter(s => s.id) || []
+                            sections: sectionsData?.map(s => {
+                                const section = Array.isArray(s.section) ? s.section[0] : s.section;
+                                const course = section?.course ? (Array.isArray(section.course) ? section.course[0] : section.course) : null;
+                                return {
+                                    id: section?.id || "",
+                                    title: section?.title || "",
+                                    course: course?.title || ""
+                                };
+                            }).filter(s => s.id) || []
                         };
                     })
                 );

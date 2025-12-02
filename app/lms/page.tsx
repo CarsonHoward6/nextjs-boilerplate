@@ -250,7 +250,13 @@ export default function LMSPage() {
                 .eq("role", "teacher");
 
             if (allSections) {
-                setUserSections(allSections);
+                const formattedSections = allSections.map(s => ({
+                    section_id: s.section_id,
+                    role: s.role,
+                    user_id: s.user_id,
+                    section: Array.isArray(s.section) ? s.section[0] : s.section
+                }));
+                setUserSections(formattedSections);
             }
 
             setLoadingCourses(false);
@@ -274,11 +280,16 @@ export default function LMSPage() {
             .eq("user_id", user.id);
 
         if (sectionsData) {
-            setUserSections(sectionsData);
+            const formattedSections = sectionsData.map(s => ({
+                section_id: s.section_id,
+                role: s.role,
+                section: Array.isArray(s.section) ? s.section[0] : s.section
+            }));
+            setUserSections(formattedSections);
 
             // Extract unique course IDs from assigned sections
             const courseIds = [...new Set(
-                sectionsData
+                formattedSections
                     .filter(s => s.section)
                     .map(s => parseInt(s.section.course_id))
             )];
@@ -306,7 +317,7 @@ export default function LMSPage() {
         // Get all sections for this course with teachers
         const { data: sections } = await supabase
             .from("section")
-            .select("id, title, year, semester")
+            .select("id, title, course_id, year, semester")
             .eq("course_id", courseId.toString());
 
         if (!sections) return [];
@@ -326,9 +337,15 @@ export default function LMSPage() {
                     .eq("section_id", section.id)
                     .eq("role", "teacher");
 
+                // Format teachers to match the Section interface
+                const formattedTeachers = teachers?.map(t => ({
+                    user_id: t.user_id,
+                    user_profiles: Array.isArray(t.user_profiles) ? t.user_profiles[0] : t.user_profiles
+                })) || [];
+
                 return {
                     ...section,
-                    teachers: teachers || []
+                    teachers: formattedTeachers
                 };
             })
         );
@@ -373,7 +390,7 @@ export default function LMSPage() {
     }
 
     function addBlock() {
-        if (!page) return;
+        if (!page || !course) return;
         if (!newTitle.trim() || !newContent.trim()) return;
 
         const block = {
@@ -401,7 +418,7 @@ export default function LMSPage() {
     }
 
     function deleteBlock(id: number) {
-        if (!page) return;
+        if (!page || !course) return;
 
         const updated = courses.map(c => {
             if (c.id !== course.id) return c;
