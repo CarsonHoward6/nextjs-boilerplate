@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/getSession";
 import Link from "next/link";
 
+// Force dynamic rendering since this page requires authentication
+export const dynamic = 'force-dynamic';
+
 export default async function Dashboard() {
     const session = await getSession();
 
