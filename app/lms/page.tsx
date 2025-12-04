@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./lms.module.css";
 import { useAuth } from "@/app/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import Announcements from "@/app/components/Announcements";
 
 interface Section {
@@ -211,6 +211,7 @@ export default function LMSPage() {
 
     const [showAnnouncements, setShowAnnouncements] = useState(false);
     const [selectedSectionForAnnouncements, setSelectedSectionForAnnouncements] = useState<Section | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [announcementsUnreadCount, setAnnouncementsUnreadCount] = useState<Record<string, number>>({});
 
     const ADMIN_EMAIL = "carsonhoward6@gmail.com";
@@ -228,12 +229,14 @@ export default function LMSPage() {
 
         setLoadingCourses(true);
 
+        const supabase = getSupabase();
+
         // Admin sees all courses
         if (isAdmin) {
             setAvailableCourses([1, 2, 3, 4, 5, 6]);
 
             // Fetch all sections with teachers for admin
-            const { data: allSections } = await supabase
+            const { data: allSections } = await ((supabase as any)
                 .from("user_sections")
                 .select(`
                     section_id,
@@ -247,10 +250,10 @@ export default function LMSPage() {
                         semester
                     )
                 `)
-                .eq("role", "teacher");
+                .eq("role", "teacher"));
 
             if (allSections) {
-                const formattedSections = allSections.map(s => ({
+                const formattedSections = allSections.map((s: any) => ({
                     section_id: s.section_id,
                     role: s.role,
                     user_id: s.user_id,
@@ -264,7 +267,7 @@ export default function LMSPage() {
         }
 
         // Fetch user's assigned sections with course and teacher info
-        const { data: sectionsData } = await supabase
+        const { data: sectionsData } = await ((supabase as any)
             .from("user_sections")
             .select(`
                 section_id,
@@ -277,10 +280,10 @@ export default function LMSPage() {
                     semester
                 )
             `)
-            .eq("user_id", user.id);
+            .eq("user_id", user.id));
 
         if (sectionsData) {
-            const formattedSections = sectionsData.map(s => ({
+            const formattedSections = sectionsData.map((s: any) => ({
                 section_id: s.section_id,
                 role: s.role,
                 section: Array.isArray(s.section) ? s.section[0] : s.section
@@ -290,9 +293,9 @@ export default function LMSPage() {
             // Extract unique course IDs from assigned sections
             const courseIds = [...new Set(
                 formattedSections
-                    .filter(s => s.section)
-                    .map(s => parseInt(s.section.course_id))
-            )];
+                    .filter((s: any) => s.section)
+                    .map((s: any) => parseInt(s.section.course_id))
+            )] as number[];
 
             setAvailableCourses(courseIds);
         }
@@ -303,6 +306,7 @@ export default function LMSPage() {
     // Fetch user's assigned sections/classes
     useEffect(() => {
         if (user && !loading) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             fetchUserSections();
         }
     }, [user, loading, fetchUserSections]);
@@ -314,18 +318,20 @@ export default function LMSPage() {
     const getSectionsForCourse = useCallback(async (courseId: number) => {
         if (!courseId) return [];
 
+        const supabase = getSupabase();
+
         // Get all sections for this course with teachers
-        const { data: sections } = await supabase
+        const { data: sections } = await ((supabase as any)
             .from("section")
             .select("id, title, course_id, year, semester")
-            .eq("course_id", courseId.toString());
+            .eq("course_id", courseId.toString()));
 
         if (!sections) return [];
 
         // Get teachers for each section
         const sectionsWithTeachers = await Promise.all(
-            sections.map(async (section) => {
-                const { data: teachers } = await supabase
+            sections.map(async (section: any) => {
+                const { data: teachers } = await ((supabase as any)
                     .from("user_sections")
                     .select(`
                         user_id,
@@ -335,10 +341,10 @@ export default function LMSPage() {
                         )
                     `)
                     .eq("section_id", section.id)
-                    .eq("role", "teacher");
+                    .eq("role", "teacher"));
 
                 // Format teachers to match the Section interface
-                const formattedTeachers = teachers?.map(t => ({
+                const formattedTeachers = teachers?.map((t: any) => ({
                     user_id: t.user_id,
                     user_profiles: Array.isArray(t.user_profiles) ? t.user_profiles[0] : t.user_profiles
                 })) || [];
@@ -361,6 +367,7 @@ export default function LMSPage() {
 
     useEffect(() => {
         if (selectedCourse) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             getSectionsForCourse(selectedCourse).then(setCourseSections);
         } else {
             setCourseSections([]);

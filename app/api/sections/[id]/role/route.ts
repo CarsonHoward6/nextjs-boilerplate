@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/getSession";
 
 // GET /api/sections/[id]/role - Get user's role in a section
@@ -14,20 +14,21 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: userSection } = await supabase
+        const supabase = getSupabase();
+        const { data: userSection } = await ((supabase as any)
             .from("user_sections")
             .select("role")
             .eq("user_id", session.user.id)
             .eq("section_id", id)
-            .single();
+            .maybeSingle());
 
         if (!userSection) {
             return NextResponse.json({ role: null });
         }
 
         return NextResponse.json({ role: userSection.role });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in GET /api/sections/[id]/role:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "An error occurred" }, { status: 500 });
     }
 }

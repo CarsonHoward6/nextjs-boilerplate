@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { getSession } from "@/lib/getSession";
+
 
 // GET /api/announcements?section_id=xxx
 export async function GET(request: NextRequest) {
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "section_id is required" }, { status: 400 });
         }
 
+        const supabase = getSupabase();
+
         // Verify user has access to this section
         const { data: userSection } = await supabase
             .from("user_sections")
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch announcements for this section
-        const { data: announcements, error } = await supabase
+        const { data: announcements, error } = await ((supabase as any)
             .from("announcements")
             .select(`
                 *,
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
             `)
             .eq("section_id", sectionId)
             .order("is_pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false }));
 
         if (error) {
             console.error("Error fetching announcements:", error);
@@ -54,16 +57,16 @@ export async function GET(request: NextRequest) {
         }
 
         // Add read status for current user
-        const announcementsWithReadStatus = announcements.map(announcement => ({
+        const announcementsWithReadStatus = (announcements || []).map((announcement: any) => ({
             ...announcement,
-            is_read: announcement.reads?.some((r: any) => r.user_id === session.user.id) || false,
+            is_read: announcement.reads?.some((r: { user_id: string }) => r.user_id === session.user.id) || false,
             reads: undefined // Remove reads array from response
         }));
 
         return NextResponse.json({ announcements: announcementsWithReadStatus });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in GET /api/announcements:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "An error occurred" }, { status: 500 });
     }
 }
 
@@ -85,13 +88,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const supabase = getSupabase();
+
         // Verify user is a teacher or TA in this section
-        const { data: userSection } = await supabase
+        const { data: userSection } = await ((supabase as any)
             .from("user_sections")
             .select("role")
             .eq("user_id", session.user.id)
             .eq("section_id", section_id)
-            .single();
+            .maybeSingle());
 
         if (!userSection || !["teacher", "teacher_assistant"].includes(userSection.role)) {
             return NextResponse.json(
@@ -101,7 +106,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create announcement
-        const { data: announcement, error } = await supabase
+        const { data: announcement, error } = await ((supabase as any)
             .from("announcements")
             .insert({
                 section_id,
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest) {
                     course_id
                 )
             `)
-            .single();
+            .maybeSingle());
 
         if (error) {
             console.error("Error creating announcement:", error);
@@ -133,14 +138,14 @@ export async function POST(request: NextRequest) {
 
         // Create notifications for all users in this section (except the author)
         try {
-            const { data: sectionUsers } = await supabase
+            const { data: sectionUsers } = await ((supabase as any)
                 .from("user_sections")
                 .select("user_id")
                 .eq("section_id", section_id)
-                .neq("user_id", session.user.id); // Don't notify the author
+                .neq("user_id", session.user.id)); // Don't notify the author
 
             if (sectionUsers && sectionUsers.length > 0) {
-                const notifications = sectionUsers.map(su => ({
+                const notifications = sectionUsers.map((su: any) => ({
                     user_id: su.user_id,
                     type: "announcement",
                     title: `New ${priority === "urgent" ? "Urgent " : ""}Announcement: ${title}`,
@@ -148,9 +153,9 @@ export async function POST(request: NextRequest) {
                     link: "/lms"
                 }));
 
-                await supabase
+                await ((supabase as any)
                     .from("notifications")
-                    .insert(notifications);
+                    .insert(notifications));
             }
         } catch (notifError) {
             // Log error but don't fail the announcement creation
@@ -158,8 +163,8 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({ announcement }, { status: 201 });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in POST /api/announcements:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "An error occurred" }, { status: 500 });
     }
 }

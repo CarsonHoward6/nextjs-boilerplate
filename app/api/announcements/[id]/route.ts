@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
 import { getSession } from "@/lib/getSession";
+import { getSupabase } from '@/lib/supabase';
+
+interface AnnouncementUpdate {
+    title?: string;
+    content?: string;
+    priority?: string;
+    is_pinned?: boolean;
+}
 
 // PUT /api/announcements/[id]
 export async function PUT(
@@ -17,12 +24,14 @@ export async function PUT(
         const body = await request.json();
         const { title, content, priority, is_pinned } = body;
 
+        const supabase = getSupabase();
+
         // Verify user is the author
-        const { data: announcement } = await supabase
+        const { data: announcement } = await (supabase
             .from("announcements")
             .select("author_id")
             .eq("id", id)
-            .single();
+            .maybeSingle() as any as Promise<{ data: { author_id: string } | null }>);
 
         if (!announcement) {
             return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
@@ -36,13 +45,13 @@ export async function PUT(
         }
 
         // Update announcement
-        const updateData: any = {};
+        const updateData: AnnouncementUpdate = {};
         if (title !== undefined) updateData.title = title;
         if (content !== undefined) updateData.content = content;
         if (priority !== undefined) updateData.priority = priority;
         if (is_pinned !== undefined) updateData.is_pinned = is_pinned;
 
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await ((supabase as any)
             .from("announcements")
             .update(updateData)
             .eq("id", id)
@@ -54,7 +63,7 @@ export async function PUT(
                     email
                 )
             `)
-            .single();
+            .maybeSingle());
 
         if (error) {
             console.error("Error updating announcement:", error);
@@ -62,9 +71,9 @@ export async function PUT(
         }
 
         return NextResponse.json({ announcement: updated });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in PUT /api/announcements/[id]:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "An error occurred" }, { status: 500 });
     }
 }
 
@@ -80,12 +89,14 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const supabase = getSupabase();
+
         // Verify user is the author
-        const { data: announcement } = await supabase
+        const { data: announcement } = await (supabase
             .from("announcements")
             .select("author_id")
             .eq("id", id)
-            .single();
+            .maybeSingle() as any as Promise<{ data: { author_id: string } | null }>);
 
         if (!announcement) {
             return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
@@ -99,10 +110,10 @@ export async function DELETE(
         }
 
         // Delete announcement
-        const { error } = await supabase
+        const { error } = await ((supabase as any)
             .from("announcements")
             .delete()
-            .eq("id", id);
+            .eq("id", id));
 
         if (error) {
             console.error("Error deleting announcement:", error);
@@ -110,8 +121,8 @@ export async function DELETE(
         }
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in DELETE /api/announcements/[id]:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "An error occurred" }, { status: 500 });
     }
 }

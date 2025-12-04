@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/app/context/AuthContext";
 
 export default function ChangeEmailPage() {
@@ -27,6 +27,7 @@ export default function ChangeEmailPage() {
             return;
         }
 
+        const supabase = getSupabase();
         const { error } = await supabase.auth.updateUser({ email: newEmail });
 
         if (error) {

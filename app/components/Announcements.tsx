@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import "./announcements.css";
 
@@ -44,12 +44,7 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
     const [newIsPinned, setNewIsPinned] = useState(false);
     const [creating, setCreating] = useState(false);
 
-    useEffect(() => {
-        fetchAnnouncements();
-        checkTeacherStatus();
-    }, [sectionId]);
-
-    async function checkTeacherStatus() {
+    const checkTeacherStatus = useCallback(async () => {
         if (!user || !sectionId) return;
 
         try {
@@ -61,9 +56,9 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
         } catch (err) {
             console.error("Error checking teacher status:", err);
         }
-    }
+    }, [user, sectionId]);
 
-    async function fetchAnnouncements() {
+    const fetchAnnouncements = useCallback(async () => {
         if (!sectionId) return;
 
         setLoading(true);
@@ -78,13 +73,18 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
             }
 
             setAnnouncements(data.announcements || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error fetching announcements:", err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : "Failed to fetch announcements");
         } finally {
             setLoading(false);
         }
-    }
+    }, [sectionId]);
+
+    useEffect(() => {
+        fetchAnnouncements();
+        checkTeacherStatus();
+    }, [fetchAnnouncements, checkTeacherStatus]);
 
     async function markAsRead(announcementId: string) {
         try {
@@ -121,9 +121,9 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
 
             // Remove from local state
             setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error deleting announcement:", err);
-            alert("Failed to delete announcement: " + err.message);
+            alert("Failed to delete announcement: " + (err instanceof Error ? err.message : "Unknown error"));
         }
     }
 
@@ -177,9 +177,9 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
             setNewPriority("normal");
             setNewIsPinned(false);
             setShowCreateForm(false);
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error creating announcement:", err);
-            alert("Failed to create announcement: " + err.message);
+            alert("Failed to create announcement: " + (err instanceof Error ? err.message : "Unknown error"));
         } finally {
             setCreating(false);
         }
@@ -263,7 +263,7 @@ export default function Announcements({ sectionId, sectionTitle, onClose }: Anno
                                 <label>Priority:</label>
                                 <select
                                     value={newPriority}
-                                    onChange={(e) => setNewPriority(e.target.value as any)}
+                                    onChange={(e) => setNewPriority(e.target.value as "low" | "normal" | "high" | "urgent")}
                                     className="create-form-select"
                                 >
                                     <option value="low">Low</option>

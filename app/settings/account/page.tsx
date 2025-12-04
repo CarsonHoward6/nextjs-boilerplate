@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/app/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export default function AccountPage() {
     const { user } = useAuth();
@@ -13,13 +13,14 @@ export default function AccountPage() {
         async function fetchRoles() {
             if (!user) return;
 
-            const { data } = await supabase
+            const supabase = getSupabase();
+            const { data } = await ((supabase as any)
                 .from("user_roles")
                 .select("role")
-                .eq("user_id", user.id);
+                .eq("user_id", user.id));
 
             if (data) {
-                setRoles(data.map(r => r.role));
+                setRoles(data.map((r: any) => r.role));
             }
             setLoadingRoles(false);
         }

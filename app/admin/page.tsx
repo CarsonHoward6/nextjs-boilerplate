@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import TransitionLink from "@/app/components/TransitionLink";
 
 type UserRole = "admin" | "teacher" | "student" | "teacher_assistant";
@@ -103,6 +103,8 @@ export default function AdminPage() {
         setError(null);
 
         try {
+            const supabase = getSupabase();
+
             // Fetch ALL auth users via API route
             const response = await fetch("/api/admin/users");
             const data = await response.json();
@@ -127,13 +129,13 @@ export default function AdminPage() {
                             .from("user_profiles")
                             .select("full_name")
                             .eq("id", authUser.id)
-                            .single();
+                            .maybeSingle() as { data: { full_name: string | null } | null };
 
                         // Get roles
                         const { data: rolesData } = await supabase
                             .from("user_roles")
                             .select("role")
-                            .eq("user_id", authUser.id);
+                            .eq("user_id", authUser.id) as { data: { role: string }[] | null };
 
                         // Get sections
                         interface SectionWithCourse {
@@ -227,6 +229,7 @@ export default function AdminPage() {
     // Fetch all data
     useEffect(() => {
         if (user?.email === ADMIN_EMAIL) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             fetchData();
         }
     }, [user, fetchData, ADMIN_EMAIL]);
@@ -240,17 +243,18 @@ export default function AdminPage() {
     }, [user, fetchLoginNotifications, ADMIN_EMAIL]);
 
     async function addRole(userId: string, role: UserRole) {
+        const supabase = getSupabase();
         const userEmail = users.find(u => u.id === userId)?.email;
 
         // Ensure user_profile exists
-        await supabase
+        await ((supabase as any)
             .from("user_profiles")
-            .upsert({ id: userId, email: userEmail }, { onConflict: "id" });
+            .upsert({ id: userId, email: userEmail }, { onConflict: "id" }));
 
         // Add role
-        const { error } = await supabase
+        const { error } = await ((supabase as any)
             .from("user_roles")
-            .insert({ user_id: userId, role });
+            .insert({ user_id: userId, role }));
 
         if (!error) {
             await fetchData();
@@ -261,11 +265,12 @@ export default function AdminPage() {
     }
 
     async function removeRole(userId: string, role: UserRole) {
-        const { error } = await supabase
+        const supabase = getSupabase();
+        const { error } = await ((supabase as any)
             .from("user_roles")
             .delete()
             .eq("user_id", userId)
-            .eq("role", role);
+            .eq("role", role));
 
         if (!error) {
             await fetchData();
@@ -277,12 +282,13 @@ export default function AdminPage() {
     async function assignSection(userId: string, sectionId: string, role: UserRole) {
         console.log("Assigning section:", { userId, sectionId, role });
 
+        const supabase = getSupabase();
         const userEmail = users.find(u => u.id === userId)?.email;
 
         // Ensure profile exists
-        const { error: profileError } = await supabase
+        const { error: profileError } = await ((supabase as any)
             .from("user_profiles")
-            .upsert({ id: userId, email: userEmail }, { onConflict: "id" });
+            .upsert({ id: userId, email: userEmail }, { onConflict: "id" }));
 
         if (profileError) {
             console.error("Profile error:", profileError);
@@ -292,10 +298,10 @@ export default function AdminPage() {
 
         // Assign section
         console.log("Inserting into user_sections:", { user_id: userId, section_id: sectionId, role });
-        const { data, error } = await supabase
+        const { data, error } = await ((supabase as any)
             .from("user_sections")
             .insert({ user_id: userId, section_id: sectionId, role })
-            .select();
+            .select());
 
         if (error) {
             console.error("Error assigning section:", error);
@@ -310,11 +316,12 @@ export default function AdminPage() {
     }
 
     async function removeSection(userId: string, sectionId: string) {
-        const { error } = await supabase
+        const supabase = getSupabase();
+        const { error } = await ((supabase as any)
             .from("user_sections")
             .delete()
             .eq("user_id", userId)
-            .eq("section_id", sectionId);
+            .eq("section_id", sectionId));
 
         if (!error) {
             await fetchData();

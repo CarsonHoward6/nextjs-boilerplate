@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import "./notificationBell.css";
 
@@ -19,8 +19,24 @@ export default function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showDropdown, setShowDropdown] = useState(false);
-    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const fetchNotifications = useCallback(async () => {
+        if (!user) return;
+
+        try {
+            const response = await fetch("/api/notifications");
+            const data = await response.json();
+
+            if (response.ok && data.notifications) {
+                setNotifications(data.notifications);
+                const unread = data.notifications.filter((n: Notification) => !n.is_read).length;
+                setUnreadCount(unread);
+            }
+        } catch (error) {
+            console.error("Error fetching notifications:", error);
+        }
+    }, [user]);
 
     useEffect(() => {
         if (user) {
@@ -29,7 +45,7 @@ export default function NotificationBell() {
             const interval = setInterval(fetchNotifications, 30000);
             return () => clearInterval(interval);
         }
-    }, [user]);
+    }, [user, fetchNotifications]);
 
     useEffect(() => {
         // Close dropdown when clicking outside
@@ -47,23 +63,6 @@ export default function NotificationBell() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [showDropdown]);
-
-    async function fetchNotifications() {
-        if (!user) return;
-
-        try {
-            const response = await fetch("/api/notifications");
-            const data = await response.json();
-
-            if (response.ok && data.notifications) {
-                setNotifications(data.notifications);
-                const unread = data.notifications.filter((n: Notification) => !n.is_read).length;
-                setUnreadCount(unread);
-            }
-        } catch (error) {
-            console.error("Error fetching notifications:", error);
-        }
-    }
 
     async function markAsRead(notificationIds: string[]) {
         try {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { useAuth } from "@/app/context/AuthContext";
 import { useLoading } from "@/app/context/LoadingContext";
 import TransitionLink from "./TransitionLink";
@@ -35,6 +35,7 @@ export default function Header() {
 
     async function handleLogout() {
         startLoading();
+        const supabase = getSupabase();
         await supabase.auth.signOut();
         setTimeout(() => {
             router.push("/login");

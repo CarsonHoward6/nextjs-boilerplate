@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import Link from "next/link";
 
 export default function SignupPage() {
@@ -9,6 +9,7 @@ export default function SignupPage() {
 
     async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        const supabase = getSupabase();
         const { error } = await supabase.auth.signUp({
             email,
             password,

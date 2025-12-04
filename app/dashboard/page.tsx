@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/getSession";
 import Link from "next/link";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export default async function Dashboard() {
     const session = await getSession();

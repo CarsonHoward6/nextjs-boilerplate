@@ -18,20 +18,28 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<Theme>("system");
-    const [fontSize, setFontSize] = useState<FontSize>("medium");
-    const [siteTheme, setSiteTheme] = useState<SiteTheme>("green");
+    const [theme, setTheme] = useState<Theme>(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("theme") as Theme) || "system";
+        }
+        return "system";
+    });
+    const [fontSize, setFontSize] = useState<FontSize>(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("fontSize") as FontSize) || "medium";
+        }
+        return "medium";
+    });
+    const [siteTheme, setSiteTheme] = useState<SiteTheme>(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("siteTheme") as SiteTheme) || "green";
+        }
+        return "green";
+    });
     const [loaded, setLoaded] = useState(false);
 
-    // Load settings from localStorage on mount
+    // Mark as loaded on mount
     useEffect(() => {
-        const savedTheme = localStorage.getItem("theme") as Theme;
-        const savedFontSize = localStorage.getItem("fontSize") as FontSize;
-        const savedSiteTheme = localStorage.getItem("siteTheme") as SiteTheme;
-
-        if (savedTheme) setTheme(savedTheme);
-        if (savedFontSize) setFontSize(savedFontSize);
-        if (savedSiteTheme) setSiteTheme(savedSiteTheme);
         setLoaded(true);
     }, []);
 

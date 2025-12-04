@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export default function ChangePasswordPage() {
     const [newPassword, setNewPassword] = useState("");
@@ -32,6 +32,7 @@ export default function ChangePasswordPage() {
             return;
         }
 
+        const supabase = getSupabase();
         const { error } = await supabase.auth.updateUser({ password: newPassword });
 
         if (error) {
