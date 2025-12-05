@@ -1599,6 +1599,18 @@ html {
 
     .auth-container {
         padding: 32px 24px;
+        margin: 40px auto;
+        max-width: 100%;
+        width: 90%;
+    }
+
+    .auth-title {
+        font-size: 28px;
+    }
+
+    .auth-input,
+    .auth-btn {
+        font-size: 16px;
     }
 
     .settings-content,
@@ -1627,5 +1639,86 @@ html {
 
     .settings-toggle-btn {
         flex: 1;
+    }
+
+    /* Admin responsive */
+    .admin-header {
+        padding: 20px 24px;
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .admin-header h1 {
+        font-size: 28px;
+    }
+
+    .admin-content {
+        padding: 24px 16px;
+    }
+
+    .admin-tabs {
+        padding: 0 16px;
+        overflow-x: auto;
+    }
+
+    .admin-tab {
+        white-space: nowrap;
+        font-size: 14px;
+        padding: 14px 16px;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-assign-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-users-table {
+        overflow-x: auto;
+    }
+
+    .admin-modal {
+        width: 95%;
+        padding: 24px;
+        margin: 0 16px;
+    }
+
+    .admin-modal h3 {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    .auth-container {
+        padding: 28px 20px;
+        margin: 20px auto;
+        width: 95%;
+        border-radius: 16px;
+    }
+
+    .auth-title {
+        font-size: 24px;
+        margin-bottom: 24px;
+    }
+
+    .auth-form {
+        gap: 14px;
+    }
+
+    .auth-input {
+        padding: 12px 14px;
+        font-size: 16px;
+    }
+
+    .auth-btn {
+        padding: 12px 18px;
+        font-size: 16px;
+    }
+
+    .auth-link {
+        font-size: 13px;
     }
 }

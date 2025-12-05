@@ -14,16 +14,44 @@ export default function LoginPage() {
     async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const supabase = getSupabase();
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
         if (error) {
             alert(error.message);
-        } else {
+        } else if (data.user && !data.user.email_confirmed_at) {
+            alert("Please verify your email before logging in. Check your inbox for the confirmation link.");
+        } else if (data.user) {
+            // Ensure user profile exists
+            const { data: existingProfile } = await supabase
+                .from("user_profiles")
+                .select("*")
+                .eq("id", data.user.id)
+                .maybeSingle();
+
+            if (!existingProfile) {
+                // Create profile if it doesn't exist
+                await supabase.from("user_profiles").insert({
+                    id: data.user.id,
+                    email: data.user.email || email,
+                    username: data.user.user_metadata?.username || email.split("@")[0],
+                    first_name: data.user.user_metadata?.first_name || null,
+                    last_name: data.user.user_metadata?.last_name || null,
+                    full_name: data.user.user_metadata?.full_name || null
+                });
+            }
+
+            // Create login notification for user
+            await supabase.from("notifications").insert({
+                user_id: data.user.id,
+                message: `You logged in successfully`,
+                notification_type: "login"
+            });
+
             startLoading();
             setTimeout(() => {
-                router.push("/lms");
+                router.push("/welcome");
                 setTimeout(() => stopLoading(), 1000);
             }, 50);
         }

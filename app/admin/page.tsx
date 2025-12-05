@@ -308,6 +308,44 @@ export default function AdminPage() {
             alert("Error assigning section: " + error.message + "\n\nDetails: " + JSON.stringify(error, null, 2));
         } else {
             console.log("Successfully assigned section:", data);
+
+            // Get section and course details for notification
+            const section = sections.find(s => s.id === sectionId);
+            const course = courses.find(c => c.id === section?.course_id);
+
+            // Create notification for the user
+            await ((supabase as any)
+                .from("notifications")
+                .insert({
+                    user_id: userId,
+                    message: `You have been assigned to ${course?.title || "a course"} - ${section?.title || "Section"} as a ${role}`,
+                    notification_type: "course_assigned",
+                    related_section_id: sectionId
+                }));
+
+            // If assigning a student, notify all teachers of that section
+            if (role === "student") {
+                const { data: teachers } = await ((supabase as any)
+                    .from("user_sections")
+                    .select("user_id")
+                    .eq("section_id", sectionId)
+                    .eq("role", "teacher"));
+
+                if (teachers && teachers.length > 0) {
+                    const teacherNotifications = teachers.map((t: any) => ({
+                        user_id: t.user_id,
+                        message: `${userEmail} has been assigned to your class: ${course?.title} - ${section?.title}`,
+                        notification_type: "student_assigned",
+                        related_user_id: userId,
+                        related_section_id: sectionId
+                    }));
+
+                    await ((supabase as any)
+                        .from("notifications")
+                        .insert(teacherNotifications));
+                }
+            }
+
             await fetchData();
             setShowSectionModal(false);
             setSelectedSection("");

@@ -21,6 +21,49 @@
     opacity: 0.6;
 }
 
+/* Home Icon (shown only when logged in) */
+.landing-home-icon {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    z-index: 20;
+    animation: fadeInDown 0.6s cubic-bezier(0.28, 0.11, 0.32, 1) 0.2s both;
+}
+
+.landing-home-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 980px;
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    transition: all 0.3s cubic-bezier(0.28, 0.11, 0.32, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.landing-home-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.landing-home-btn svg {
+    transition: transform 0.3s;
+}
+
+.landing-home-btn:hover svg {
+    transform: scale(1.1);
+}
+
 /* Loading State */
 .landing-spinner-container {
     display: flex;
@@ -302,6 +345,20 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .landing-page {
+        padding: 60px 20px;
+    }
+
+    .landing-home-icon {
+        top: 16px;
+        right: 16px;
+    }
+
+    .landing-home-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
     .landing-title {
         font-size: 48px;
     }
@@ -316,6 +373,26 @@
 }
 
 @media (max-width: 640px) {
+    .landing-page {
+        padding: 40px 16px;
+    }
+
+    .landing-home-icon {
+        top: 12px;
+        right: 12px;
+    }
+
+    .landing-home-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    .landing-home-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
     .landing-title {
         font-size: 40px;
     }
@@ -340,11 +417,16 @@
     .landing-btn {
         width: 100%;
         justify-content: center;
+        padding: 14px 28px;
     }
 
     .landing-features {
         flex-direction: column;
         gap: 16px;
         width: 100%;
+    }
+
+    .landing-feature {
+        padding: 16px;
     }
 }

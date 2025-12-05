@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(npx tsx:*)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then echo \"File exists\")",
+      "Bash(else echo \"Missing .env.local\")",
+      "Bash(fi)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

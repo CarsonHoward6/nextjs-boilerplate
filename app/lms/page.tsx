@@ -205,6 +205,8 @@ export default function LMSPage() {
     const [availableCourses, setAvailableCourses] = useState<number[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [username, setUsername] = useState<string | null>(null);
+    const [unreadNotifications, setUnreadNotifications] = useState(0);
 
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -230,6 +232,28 @@ export default function LMSPage() {
         setLoadingCourses(true);
 
         const supabase = getSupabase();
+
+        // Fetch username from user_profiles
+        const { data: profileData } = await supabase
+            .from("user_profiles")
+            .select("username, first_name, last_name")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        if (profileData) {
+            setUsername(profileData.username || profileData.first_name || user.email?.split("@")[0] || "User");
+        } else {
+            setUsername(user.email?.split("@")[0] || "User");
+        }
+
+        // Fetch unread notifications count
+        const { data: notificationsData } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact" })
+            .eq("user_id", user.id)
+            .eq("read", false);
+
+        setUnreadNotifications(notificationsData?.length || 0);
 
         // Admin sees all courses
         if (isAdmin) {
@@ -460,7 +484,60 @@ export default function LMSPage() {
         <div className={styles.wrapper}>
             {/* HEADER */}
             <header className={styles.header}>
-                <h1>Courses</h1>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            padding: "8px 16px",
+                            background: "var(--bg-secondary, #f0f0f0)",
+                            borderRadius: "8px",
+                            color: "var(--text-primary, #333)"
+                        }}>
+                            {username || "Loading..."}
+                        </div>
+                        <h1>Courses</h1>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <a
+                            href="/notifications"
+                            style={{
+                                position: "relative",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "8px 16px",
+                                background: unreadNotifications > 0 ? "#3b82f6" : "var(--bg-secondary, #f0f0f0)",
+                                color: unreadNotifications > 0 ? "white" : "var(--text-primary, #333)",
+                                borderRadius: "8px",
+                                textDecoration: "none",
+                                fontSize: "14px",
+                                fontWeight: "600",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            </svg>
+                            Notifications
+                            {unreadNotifications > 0 && (
+                                <span style={{
+                                    background: "#ef4444",
+                                    color: "white",
+                                    borderRadius: "10px",
+                                    padding: "2px 8px",
+                                    fontSize: "12px",
+                                    fontWeight: "700",
+                                    minWidth: "20px",
+                                    textAlign: "center"
+                                }}>
+                                    {unreadNotifications}
+                                </span>
+                            )}
+                        </a>
+                    </div>
+                </div>
             </header>
 
             {/* LAYOUT */}
