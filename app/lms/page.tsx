@@ -238,7 +238,7 @@ export default function LMSPage() {
             .from("user_profiles")
             .select("username, first_name, last_name")
             .eq("id", user.id)
-            .maybeSingle();
+            .maybeSingle() as { data: { username?: string; first_name?: string; last_name?: string } | null };
 
         if (profileData) {
             setUsername(profileData.username || profileData.first_name || user.email?.split("@")[0] || "User");
