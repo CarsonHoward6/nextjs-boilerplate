@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { getSupabase } from "@/lib/supabase";
-import TransitionLink from "@/app/components/TransitionLink";
 
 interface Notification {
     id: string;
@@ -54,8 +53,8 @@ export default function NotificationsPage() {
 
     async function markAsRead(id: string) {
         const supabase = getSupabase();
-        await supabase
-            .from("notifications")
+        await (supabase
+            .from("notifications") as any)
             .update({ read: true })
             .eq("id", id);
 
@@ -68,8 +67,8 @@ export default function NotificationsPage() {
         if (!user) return;
 
         const supabase = getSupabase();
-        await supabase
-            .from("notifications")
+        await (supabase
+            .from("notifications") as any)
             .update({ read: true })
             .eq("user_id", user.id)
             .eq("read", false);
@@ -186,7 +185,7 @@ export default function NotificationsPage() {
                                 Mark all as read
                             </button>
                         )}
-                        <TransitionLink
+                        <a
                             href="/lms"
                             style={{
                                 padding: "10px 20px",
@@ -201,7 +200,7 @@ export default function NotificationsPage() {
                             }}
                         >
                             Back to Courses
-                        </TransitionLink>
+                        </a>
                     </div>
                 </header>
 

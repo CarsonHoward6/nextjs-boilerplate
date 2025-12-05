@@ -25,7 +25,7 @@ export default function WelcomePage() {
                     .from("user_profiles")
                     .select("first_name, username")
                     .eq("id", user.id)
-                    .maybeSingle();
+                    .maybeSingle() as { data: { first_name?: string; username?: string } | null };
 
                 const name = profileData?.first_name || profileData?.username || user.email?.split("@")[0] || "User";
                 setFirstName(name);
