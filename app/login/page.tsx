@@ -32,7 +32,7 @@ export default function LoginPage() {
 
             if (!existingProfile) {
                 // Create profile if it doesn't exist
-                await supabase.from("user_profiles").insert({
+                await (supabase.from("user_profiles") as any).insert({
                     id: data.user.id,
                     email: data.user.email || email,
                     username: data.user.user_metadata?.username || email.split("@")[0],
@@ -43,7 +43,7 @@ export default function LoginPage() {
             }
 
             // Create login notification for user
-            await supabase.from("notifications").insert({
+            await (supabase.from("notifications") as any).insert({
                 user_id: data.user.id,
                 message: `You logged in successfully`,
                 notification_type: "login"
