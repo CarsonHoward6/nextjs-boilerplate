@@ -57,7 +57,7 @@ export default function AdminPage() {
 
     // Submissions state
     const [submissions, setSubmissions] = useState<any[]>([]);
-    const [submissionsFilter, setSubmissionsFilter] = useState<{courseId?: string; assignmentId?: string}>({});
+    const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
     const ADMIN_EMAIL = "carsonhoward6@gmail.com";
 
@@ -100,6 +100,20 @@ export default function AdminPage() {
         } catch (err) {
             console.error("Error fetching login notifications:", err);
         }
+    }, []);
+
+    const fetchSubmissions = useCallback(async () => {
+        setLoadingSubmissions(true);
+        try {
+            const response = await fetch('/api/submissions');
+            if (response.ok) {
+                const data = await response.json();
+                setSubmissions(data);
+            }
+        } catch (err) {
+            console.error("Error fetching submissions:", err);
+        }
+        setLoadingSubmissions(false);
     }, []);
 
     const fetchData = useCallback(async () => {
@@ -222,13 +236,18 @@ export default function AdminPage() {
             // Fetch login notifications
             await fetchLoginNotifications();
 
+            // Fetch submissions if on submissions tab
+            if (activeTab === 'submissions') {
+                await fetchSubmissions();
+            }
+
         } catch (err) {
             console.error("Error in fetchData:", err);
             setError("Error loading data. Please check console for details.");
         }
 
         setLoadingData(false);
-    }, [fetchLoginNotifications]);
+    }, [fetchLoginNotifications, activeTab, fetchSubmissions]);
 
     // Fetch all data
     useEffect(() => {
@@ -646,11 +665,44 @@ export default function AdminPage() {
                     <div className="admin-users-section">
                         <h2>Student Assignment Submissions</h2>
                         <p style={{ marginBottom: "20px", color: "#6e6e73" }}>
-                            View all student submissions for assignments across all courses. Click on a submission to see details.
+                            All student submissions across all courses and assignments.
                         </p>
-                        <p className="admin-empty-state">
-                            Submissions view - Feature coming soon. Use the LMS page to view individual student submissions.
-                        </p>
+                        {loadingSubmissions ? (
+                            <p className="admin-empty-state">Loading submissions...</p>
+                        ) : submissions.length === 0 ? (
+                            <p className="admin-empty-state">No submissions yet.</p>
+                        ) : (
+                            <div className="admin-users-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Course ID</th>
+                                            <th>Assignment ID</th>
+                                            <th>Problem ID</th>
+                                            <th>Answer Preview</th>
+                                            <th>Submitted</th>
+                                            <th>Updated</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {submissions.map((sub) => (
+                                            <tr key={sub.id}>
+                                                <td>{sub.user_profiles?.username || sub.user_profiles?.email || sub.user_id}</td>
+                                                <td>{sub.course_id}</td>
+                                                <td>{sub.assignment_id}</td>
+                                                <td>{sub.problem_id}</td>
+                                                <td style={{ maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {sub.answer.substring(0, 50)}{sub.answer.length > 50 ? '...' : ''}
+                                                </td>
+                                                <td>{new Date(sub.submitted_at).toLocaleString()}</td>
+                                                <td>{new Date(sub.updated_at).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

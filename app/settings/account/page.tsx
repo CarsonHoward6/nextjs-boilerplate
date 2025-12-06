@@ -8,24 +8,40 @@ export default function AccountPage() {
     const { user } = useAuth();
     const [roles, setRoles] = useState<string[]>([]);
     const [loadingRoles, setLoadingRoles] = useState(true);
+    const [username, setUsername] = useState<string>("");
+    const [loadingUsername, setLoadingUsername] = useState(true);
 
     useEffect(() => {
-        async function fetchRoles() {
+        async function fetchData() {
             if (!user) return;
 
             const supabase = getSupabase();
-            const { data } = await ((supabase as any)
+
+            // Fetch roles
+            const { data: rolesData } = await ((supabase as any)
                 .from("user_roles")
                 .select("role")
                 .eq("user_id", user.id));
 
-            if (data) {
-                setRoles(data.map((r: any) => r.role));
+            if (rolesData) {
+                setRoles(rolesData.map((r: any) => r.role));
             }
             setLoadingRoles(false);
+
+            // Fetch username
+            const { data: profileData } = await ((supabase as any)
+                .from("user_profiles")
+                .select("username")
+                .eq("id", user.id)
+                .maybeSingle());
+
+            if (profileData) {
+                setUsername(profileData.username || "");
+            }
+            setLoadingUsername(false);
         }
 
-        fetchRoles();
+        fetchData();
     }, [user]);
 
     if (!user) return null;
@@ -56,6 +72,11 @@ export default function AccountPage() {
                 <h2 className="settings-card-title">Profile Details</h2>
 
                 <div className="settings-grid">
+                    <div className="settings-field">
+                        <label className="settings-label">Username</label>
+                        <p className="settings-value">{loadingUsername ? "Loading..." : username || "Not set"}</p>
+                    </div>
+
                     <div className="settings-field">
                         <label className="settings-label">Email Address</label>
                         <p className="settings-value">{user.email}</p>
