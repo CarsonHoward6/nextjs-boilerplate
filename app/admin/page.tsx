@@ -40,7 +40,7 @@ interface LoginNotification {
 export default function AdminPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<"users" | "assign" | "notifications">("users");
+    const [activeTab, setActiveTab] = useState<"users" | "assign" | "notifications" | "submissions">("users");
     const [users, setUsers] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
@@ -54,6 +54,10 @@ export default function AdminPage() {
     const [selectedSectionRole, setSelectedSectionRole] = useState<UserRole>("student");
     const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Submissions state
+    const [submissions, setSubmissions] = useState<any[]>([]);
+    const [submissionsFilter, setSubmissionsFilter] = useState<{courseId?: string; assignmentId?: string}>({});
 
     const ADMIN_EMAIL = "carsonhoward6@gmail.com";
 
@@ -428,6 +432,12 @@ export default function AdminPage() {
                 >
                     Login Activity ({loginNotifications.length})
                 </button>
+                <button
+                    className={`admin-tab ${activeTab === "submissions" ? "active" : ""}`}
+                    onClick={() => setActiveTab("submissions")}
+                >
+                    Student Submissions ({submissions.length})
+                </button>
             </div>
 
             <div className="admin-content">
@@ -629,6 +639,18 @@ export default function AdminPage() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === "submissions" && (
+                    <div className="admin-users-section">
+                        <h2>Student Assignment Submissions</h2>
+                        <p style={{ marginBottom: "20px", color: "#6e6e73" }}>
+                            View all student submissions for assignments across all courses. Click on a submission to see details.
+                        </p>
+                        <p className="admin-empty-state">
+                            Submissions view - Feature coming soon. Use the LMS page to view individual student submissions.
+                        </p>
                     </div>
                 )}
             </div>
