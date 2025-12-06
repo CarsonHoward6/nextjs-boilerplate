@@ -16,6 +16,29 @@ export default function Header() {
     const { startLoading, stopLoading } = useLoading();
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const [username, setUsername] = useState<string | null>(null);
+
+    // Fetch username
+    useEffect(() => {
+        async function fetchUsername() {
+            if (!user) return;
+
+            const supabase = getSupabase();
+            const { data: profileData } = await supabase
+                .from("user_profiles")
+                .select("username, first_name, last_name")
+                .eq("id", user.id)
+                .maybeSingle() as { data: { username?: string; first_name?: string; last_name?: string } | null };
+
+            if (profileData) {
+                setUsername(profileData.username || profileData.first_name || user.email?.split("@")[0] || "User");
+            } else {
+                setUsername(user.email?.split("@")[0] || "User");
+            }
+        }
+
+        fetchUsername();
+    }, [user]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -46,7 +69,18 @@ export default function Header() {
     return (
         <header className="site-header">
             <nav className="site-nav">
-                {/* Empty left side - icons moved to right */}
+                {user && username && (
+                    <div style={{
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        padding: "8px 16px",
+                        background: "var(--bg-secondary, rgba(0, 0, 0, 0.04))",
+                        borderRadius: "8px",
+                        color: "var(--text-primary, #1d1d1f)"
+                    }}>
+                        {username}
+                    </div>
+                )}
             </nav>
 
             <div className="header-right">

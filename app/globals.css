@@ -50,6 +50,27 @@ html {
     scroll-behavior: smooth;
 }
 
+/* ========== PAGE TRANSITIONS ========== */
+@keyframes pageTransitionIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-transition {
+    animation: pageTransitionIn 0.4s cubic-bezier(0.28, 0.11, 0.32, 1);
+}
+
+/* Smooth page navigation */
+.transition-link {
+    transition: all 0.2s ease;
+}
+
 /* ========== SITE HEADER ========== */
 .site-header {
     position: fixed;

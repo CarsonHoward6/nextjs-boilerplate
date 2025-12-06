@@ -50,7 +50,7 @@ export default function WelcomePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 minHeight: "100vh",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                background: "linear-gradient(135deg, #5f7a39 0%, #4b5e2e 100%)"
             }}>
                 <div style={{
                     width: "48px",
@@ -75,7 +75,7 @@ export default function WelcomePage() {
             alignItems: "center",
             justifyContent: "center",
             minHeight: "100vh",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: "linear-gradient(135deg, #5f7a39 0%, #4b5e2e 100%)",
             padding: "20px",
             overflow: "hidden",
             position: "relative"

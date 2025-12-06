@@ -7,7 +7,10 @@
       "Bash(then echo \"File exists\")",
       "Bash(else echo \"Missing .env.local\")",
       "Bash(fi)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

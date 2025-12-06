@@ -205,8 +205,6 @@ export default function LMSPage() {
     const [availableCourses, setAvailableCourses] = useState<number[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-    const [username, setUsername] = useState<string | null>(null);
-    const [unreadNotifications, setUnreadNotifications] = useState(0);
 
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -232,28 +230,6 @@ export default function LMSPage() {
         setLoadingCourses(true);
 
         const supabase = getSupabase();
-
-        // Fetch username from user_profiles
-        const { data: profileData } = await supabase
-            .from("user_profiles")
-            .select("username, first_name, last_name")
-            .eq("id", user.id)
-            .maybeSingle() as { data: { username?: string; first_name?: string; last_name?: string } | null };
-
-        if (profileData) {
-            setUsername(profileData.username || profileData.first_name || user.email?.split("@")[0] || "User");
-        } else {
-            setUsername(user.email?.split("@")[0] || "User");
-        }
-
-        // Fetch unread notifications count
-        const { data: notificationsData } = await supabase
-            .from("notifications")
-            .select("id", { count: "exact" })
-            .eq("user_id", user.id)
-            .eq("read", false);
-
-        setUnreadNotifications(notificationsData?.length || 0);
 
         // Admin sees all courses
         if (isAdmin) {
@@ -485,58 +461,7 @@ export default function LMSPage() {
             {/* HEADER */}
             <header className={styles.header}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <div style={{
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            padding: "8px 16px",
-                            background: "var(--bg-secondary, #f0f0f0)",
-                            borderRadius: "8px",
-                            color: "var(--text-primary, #333)"
-                        }}>
-                            {username || "Loading..."}
-                        </div>
-                        <h1>Courses</h1>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <a
-                            href="/notifications"
-                            style={{
-                                position: "relative",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                padding: "8px 16px",
-                                background: unreadNotifications > 0 ? "#3b82f6" : "var(--bg-secondary, #f0f0f0)",
-                                color: unreadNotifications > 0 ? "white" : "var(--text-primary, #333)",
-                                borderRadius: "8px",
-                                textDecoration: "none",
-                                fontSize: "14px",
-                                fontWeight: "600",
-                                transition: "all 0.2s"
-                            }}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                            </svg>
-                            Notifications
-                            {unreadNotifications > 0 && (
-                                <span style={{
-                                    background: "#ef4444",
-                                    color: "white",
-                                    borderRadius: "10px",
-                                    padding: "2px 8px",
-                                    fontSize: "12px",
-                                    fontWeight: "700",
-                                    minWidth: "20px",
-                                    textAlign: "center"
-                                }}>
-                                    {unreadNotifications}
-                                </span>
-                            )}
-                        </a>
-                    </div>
+                    <h1>Courses</h1>
                 </div>
             </header>
 
@@ -544,41 +469,44 @@ export default function LMSPage() {
             <div className={styles.container}>
                 {/* LEFT SIDEBAR */}
                 <aside className={`${styles.left} ${isSidebarCollapsed ? styles.leftCollapsed : ''}`}>
-                    {/* Collapse Toggle Button */}
-                    <button
-                        className={styles.collapseBtn}
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            {isSidebarCollapsed ? (
-                                <polyline points="9 18 15 12 9 6" />
-                            ) : (
-                                <polyline points="15 18 9 12 15 6" />
-                            )}
-                        </svg>
-                    </button>
-
-                    <div className={styles.dropdown}>
-                        <select
-                            className={styles.select}
-                            value={selectedCourse ?? ""}
-                            onChange={(e) => {
-                                const id = Number(e.target.value);
-                                setSelectedCourse(id);
-                                setSelectedPage(null);
-                            }}
-                            disabled={loadingCourses}
+                    {/* Dropdown and Collapse Button Container */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
+                        <div style={{ flex: 1 }}>
+                            <select
+                                className={styles.select}
+                                value={selectedCourse ?? ""}
+                                onChange={(e) => {
+                                    const id = Number(e.target.value);
+                                    setSelectedCourse(id);
+                                    setSelectedPage(null);
+                                }}
+                                disabled={loadingCourses}
+                            >
+                                <option value="">{loadingCourses ? "Loading courses..." : "Select Course..."}</option>
+                                {courses
+                                    .filter(c => availableCourses.includes(c.id))
+                                    .map(c => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.title}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
+                        {/* Collapse Toggle Button */}
+                        <button
+                            className={styles.collapseBtn}
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            style={{ margin: 0 }}
                         >
-                            <option value="">{loadingCourses ? "Loading courses..." : "Select Course..."}</option>
-                            {courses
-                                .filter(c => availableCourses.includes(c.id))
-                                .map(c => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.title}
-                                    </option>
-                                ))}
-                        </select>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                {isSidebarCollapsed ? (
+                                    <polyline points="9 18 15 12 9 6" />
+                                ) : (
+                                    <polyline points="15 18 9 12 15 6" />
+                                )}
+                            </svg>
+                        </button>
                     </div>
 
                     {/* Sections with Teachers */}

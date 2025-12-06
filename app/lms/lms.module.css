@@ -44,7 +44,6 @@
     padding: 24px 10px;
 }
 
-.leftCollapsed .dropdown,
 .leftCollapsed .pageList,
 .leftCollapsed > div {
     opacity: 0;
@@ -53,11 +52,24 @@
     overflow: hidden;
 }
 
+.leftCollapsed > div:first-child {
+    opacity: 1;
+    visibility: visible;
+    height: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.leftCollapsed > div:first-child > div:first-child {
+    display: none;
+}
+
 .leftCollapsed .collapseBtn {
     opacity: 1;
     visibility: visible;
     height: 36px;
     width: 36px;
+    margin: 0 auto !important;
 }
 
 /* Collapse Button */

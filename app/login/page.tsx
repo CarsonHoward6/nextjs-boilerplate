@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useLoading } from "@/app/context/LoadingContext";
 
 export default function LoginPage() {
-    const [email, setEmail] = useState("");
+    const [emailOrUsername, setEmailOrUsername] = useState("");
     const [password, setPassword] = useState("");
     const router = useRouter();
     const { startLoading, stopLoading } = useLoading();
@@ -14,8 +14,28 @@ export default function LoginPage() {
     async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const supabase = getSupabase();
+
+        // Check if input is email or username
+        let loginEmail = emailOrUsername;
+
+        // If not an email (no @ symbol), treat as username and lookup email
+        if (!emailOrUsername.includes("@")) {
+            const { data: profileData } = await supabase
+                .from("user_profiles")
+                .select("email")
+                .eq("username", emailOrUsername)
+                .maybeSingle() as { data: { email: string } | null };
+
+            if (!profileData) {
+                alert("Username not found. Please check your username or use your email address.");
+                return;
+            }
+
+            loginEmail = profileData.email;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
-            email,
+            email: loginEmail,
             password,
         });
         if (error) {
@@ -34,8 +54,8 @@ export default function LoginPage() {
                 // Create profile if it doesn't exist
                 await (supabase.from("user_profiles") as any).insert({
                     id: data.user.id,
-                    email: data.user.email || email,
-                    username: data.user.user_metadata?.username || email.split("@")[0],
+                    email: data.user.email || loginEmail,
+                    username: data.user.user_metadata?.username || loginEmail.split("@")[0],
                     first_name: data.user.user_metadata?.first_name || null,
                     last_name: data.user.user_metadata?.last_name || null,
                     full_name: data.user.user_metadata?.full_name || null
@@ -49,11 +69,7 @@ export default function LoginPage() {
                 notification_type: "login"
             });
 
-            startLoading();
-            setTimeout(() => {
-                router.push("/welcome");
-                setTimeout(() => stopLoading(), 1000);
-            }, 50);
+            router.push("/welcome");
         }
     }
 
@@ -64,10 +80,10 @@ export default function LoginPage() {
             <form className="auth-form" onSubmit={handleLogin}>
                 <input
                     className="auth-input"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="Email or Username"
+                    value={emailOrUsername}
+                    onChange={(e) => setEmailOrUsername(e.target.value)}
                 />
 
                 <input
