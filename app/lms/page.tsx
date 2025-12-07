@@ -1217,7 +1217,7 @@ export default function LMSPage() {
                                 </SortableContext>
                             </DndContext>
                             {/* Add Assignment Button - Teachers and Admin Only */}
-                            {(isAdmin || isTeacher) && (
+                            {!isSidebarCollapsed && (isAdmin || isTeacher) && (
                                 <button
                                     className={styles.addBtn}
                                     onClick={() => setShowAddAssignmentModal(true)}
