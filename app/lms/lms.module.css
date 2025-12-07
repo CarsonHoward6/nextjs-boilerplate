@@ -587,3 +587,38 @@
     background: var(--site-primary, #5f7a39);
     color: white;
 }
+
+/* ========== EDIT/SAVE/CANCEL BUTTONS ========== */
+.editBtn, .saveBtn, .cancelBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+
+.editBtn:hover {
+    opacity: 1;
+    background: rgba(0, 122, 255, 0.1);
+}
+
+.saveBtn {
+    color: #34c759;
+}
+
+.saveBtn:hover {
+    opacity: 1;
+    background: rgba(52, 199, 89, 0.1);
+}
+
+.cancelBtn {
+    color: #ff3b30;
+}
+
+.cancelBtn:hover {
+    opacity: 1;
+    background: rgba(255, 59, 48, 0.1);
+}

@@ -6,23 +6,6 @@ import styles from "./lms.module.css";
 import { useAuth } from "@/app/context/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import Announcements from "@/app/components/Announcements";
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent,
-} from "@dnd-kit/core";
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 interface Section {
     id: string;
@@ -50,24 +33,6 @@ interface UserSection {
         year: number;
         semester: string;
     };
-}
-interface Block {
-    id: number;
-    title: string;
-    content: string;
-}
-
-interface Page {
-    id: number;
-    title: string;
-    dueDate?: string;
-    blocks: Block[];
-}
-
-interface Course {
-    id: number;
-    title: string;
-    pages: Page[];
 }
 
 // --- Mock data (replace with API later) ---
@@ -382,161 +347,6 @@ const initialCourses = [
         }
 ];
 
-// Sortable Page Item Component
-function SortablePageItem({ page, isActive, onClick, canEdit }: { page: Page; isActive: boolean; onClick: () => void; canEdit: boolean }) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: page.id, disabled: !canEdit });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-        <li
-            ref={setNodeRef}
-            style={style}
-            className={`${styles.pageItem} ${isActive ? styles.activePage : ""}`}
-            onClick={onClick}
-        >
-            {canEdit && (
-                <span {...attributes} {...listeners} style={{ cursor: 'grab', marginRight: '8px', userSelect: 'none' }}>
-                    ⋮⋮
-                </span>
-            )}
-            {page.title}
-        </li>
-    );
-}
-
-// Sortable Block Item Component
-function SortableBlockItem({ block, canEdit, isEditing, onEdit, onSave, onCancel, onDelete, editTitle, editContent, setEditTitle, setEditContent, onSubmitAnswer, answers, setAnswers, submissions, submitting }: any) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: block.id, disabled: !canEdit });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} className={styles.block}>
-            <div className={styles.blockHeader}>
-                {canEdit && (
-                    <span {...attributes} {...listeners} style={{ cursor: 'grab', marginRight: '8px', userSelect: 'none', fontSize: '18px' }}>
-                        ⋮⋮
-                    </span>
-                )}
-                {isEditing ? (
-                    <input
-                        className={styles.input}
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        style={{ flex: 1, marginRight: '8px' }}
-                    />
-                ) : (
-                    <h3 style={{ flex: 1 }}>{block.title}</h3>
-                )}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    {canEdit && !isEditing && (
-                        <button
-                            className={styles.editBtn}
-                            onClick={onEdit}
-                            title="Edit"
-                        >
-                            ✏️
-                        </button>
-                    )}
-                    {canEdit && isEditing && (
-                        <>
-                            <button
-                                className={styles.saveBtn}
-                                onClick={onSave}
-                                title="Save"
-                            >
-                                ✓
-                            </button>
-                            <button
-                                className={styles.cancelBtn}
-                                onClick={onCancel}
-                                title="Cancel"
-                            >
-                                ✕
-                            </button>
-                        </>
-                    )}
-                    {canEdit && (
-                        <button
-                            className={styles.deleteBtn}
-                            onClick={onDelete}
-                            title="Delete"
-                        >
-                            🗑️
-                        </button>
-                    )}
-                </div>
-            </div>
-            {isEditing ? (
-                <textarea
-                    className={styles.textarea}
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    rows={4}
-                    style={{ marginTop: '12px' }}
-                />
-            ) : (
-                <p>{block.content}</p>
-            )}
-
-            {/* Submission Form */}
-            {!isEditing && (
-                <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
-                    <label style={{ display: "block", fontWeight: "600", marginBottom: "8px", fontSize: "14px" }}>
-                        Your Answer:
-                    </label>
-                    <textarea
-                        className={styles.textarea}
-                        placeholder="Type your answer here..."
-                        value={answers[block.id] || ""}
-                        onChange={(e) => setAnswers({ ...answers, [block.id]: e.target.value })}
-                        rows={4}
-                        style={{ marginBottom: "12px" }}
-                    />
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                        <button
-                            className={styles.addBtn}
-                            onClick={() => onSubmitAnswer(block.id)}
-                            disabled={submitting[block.id]}
-                            style={{ margin: 0 }}
-                        >
-                            {submitting[block.id] ? "Submitting..." : submissions[block.id] ? "Update Answer" : "Submit Answer"}
-                        </button>
-                        {submissions[block.id] && (
-                            <span style={{ fontSize: "13px", color: "#34c759", fontWeight: "500" }}>
-                                ✓ Submitted {new Date(submissions[block.id].submitted_at).toLocaleString()}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
 export default function LMSPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
@@ -570,18 +380,6 @@ export default function LMSPage() {
     const [showAddCourseModal, setShowAddCourseModal] = useState(false);
     const [newCourseCode, setNewCourseCode] = useState("");
     const [newCourseNumber, setNewCourseNumber] = useState("");
-        // Inline editing state for blocks
-    const [editingBlockId, setEditingBlockId] = useState<number | null>(null);
-    const [editTitle, setEditTitle] = useState("");
-    const [editContent, setEditContent] = useState("");
-
-    // Drag and drop sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
 
     const ADMIN_EMAIL = "carsonhoward6@gmail.com";
     const isAdmin = user?.email === ADMIN_EMAIL;
@@ -591,8 +389,6 @@ export default function LMSPage() {
         if (!s.section) return false;
         return parseInt(s.section.course_id) === selectedCourse && s.role === 'teacher';
     });
-    // Can edit if admin or teacher
-    const canEdit = isAdmin || isTeacher;
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -772,102 +568,6 @@ export default function LMSPage() {
         if (!course || !hasNextPage) return;
         setSelectedPage(course.pages[currentPageIndex + 1].id);
     }
-
-    // Handle page drag end
-    function handlePageDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
-
-        if (!over || active.id === over.id || !course) {
-            return;
-        }
-
-        const oldIndex = course.pages.findIndex(p => p.id === active.id);
-        const newIndex = course.pages.findIndex(p => p.id === over.id);
-
-        const newPages = arrayMove(course.pages, oldIndex, newIndex);
-
-        // Update local state
-        const updatedCourses = courses.map(c =>
-            c.id === course.id ? { ...c, pages: newPages } : c
-        );
-        setCourses(updatedCourses);
-
-        console.log(`Moved page ${active.id} from index ${oldIndex} to ${newIndex}`);
-    }
-
-    // Handle block drag end
-    function handleBlockDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
-
-        if (!over || active.id === over.id || !page || !course) {
-            return;
-        }
-
-        const oldIndex = page.blocks.findIndex(b => b.id === active.id);
-        const newIndex = page.blocks.findIndex(b => b.id === over.id);
-
-        const newBlocks = arrayMove(page.blocks, oldIndex, newIndex);
-
-        // Update local state
-        const updatedCourses = courses.map(c => {
-            if (c.id !== course.id) return c;
-            return {
-                ...c,
-                pages: c.pages.map(p =>
-                    p.id === page.id ? { ...p, blocks: newBlocks } : p
-                )
-            };
-        });
-        setCourses(updatedCourses);
-
-        console.log(`Moved block ${active.id} from index ${oldIndex} to ${newIndex}`);
-    }
-
-    // Start editing a block
-    function startEditBlock(block: Block) {
-        setEditingBlockId(block.id);
-        setEditTitle(block.title);
-        setEditContent(block.content);
-    }
-
-    // Save block edits
-    async function saveBlockEdit(blockId: number) {
-        if (!page || !course) return;
-
-        // Update local state
-        const updated = courses.map(c => {
-            if (c.id !== course.id) return c;
-
-            return {
-                ...c,
-                pages: c.pages.map(p =>
-                    p.id === page.id
-                        ? {
-                            ...p,
-                            blocks: p.blocks.map(b =>
-                                b.id === blockId
-                                    ? { ...b, title: editTitle, content: editContent }
-                                    : b
-                            )
-                        }
-                        : p
-                )
-            };
-        });
-
-        setCourses(updated);
-        setEditingBlockId(null);
-
-        console.log(`Saved block ${blockId}:`, { title: editTitle, content: editContent });
-    }
-
-    // Cancel editing
-    function cancelBlockEdit() {
-        setEditingBlockId(null);
-        setEditTitle("");
-        setEditContent("");
-    }
-
 
     function addBlock() {
         if (!page || !course) return;
@@ -1191,31 +891,20 @@ export default function LMSPage() {
                         </div>
                     )}
 
-{/* Pages with Drag and Drop */}
+                    {/* Pages */}
                     {course && (
                         <>
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handlePageDragEnd}
-                            >
-                                <SortableContext
-                                    items={course.pages.map(p => p.id)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    <ul className={styles.pageList}>
-                                        {course.pages.map(p => (
-                                            <SortablePageItem
-                                                key={p.id}
-                                                page={p}
-                                                isActive={selectedPage === p.id}
-                                                onClick={() => setSelectedPage(p.id)}
-                                                canEdit={canEdit}
-                                            />
-                                        ))}
-                                    </ul>
-                                </SortableContext>
-                            </DndContext>
+                            <ul className={styles.pageList}>
+                                {course.pages.map(p => (
+                                    <li
+                                        key={p.id}
+                                        className={`${styles.pageItem} ${selectedPage === p.id ? styles.activePage : ""}`}
+                                        onClick={() => setSelectedPage(p.id)}
+                                    >
+                                        {p.title}
+                                    </li>
+                                ))}
+                            </ul>
                             {/* Add Assignment Button - Teachers and Admin Only */}
                             {(isAdmin || isTeacher) && (
                                 <button
@@ -1280,45 +969,58 @@ export default function LMSPage() {
                                 )}
                             </div>
 
-{/* BLOCKS with Drag and Drop */}
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleBlockDragEnd}
-                            >
-                                <SortableContext
-                                    items={page.blocks.map(b => b.id)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    <div className={styles.blocks}>
-                                        {page.blocks.map((b) => (
-                                            <SortableBlockItem
-                                                key={b.id}
-                                                block={b}
-                                                canEdit={canEdit}
-                                                isEditing={editingBlockId === b.id}
-                                                onEdit={() => startEditBlock(b)}
-                                                onSave={() => saveBlockEdit(b.id)}
-                                                onCancel={cancelBlockEdit}
-                                                onDelete={() => deleteBlock(b.id)}
-                                                editTitle={editTitle}
-                                                editContent={editContent}
-                                                setEditTitle={setEditTitle}
-                                                setEditContent={setEditContent}
-                                                onSubmitAnswer={submitAnswer}
-                                                answers={answers}
-                                                setAnswers={setAnswers}
-                                                submissions={submissions}
-                                                submitting={submitting}
+                            {/* BLOCKS */}
+                            <div className={styles.blocks}>
+                                {page.blocks.map((b) => (
+                                    <div className={styles.block} key={b.id}>
+                                        <div className={styles.blockHeader}>
+                                            <h3>{b.title}</h3>
+                                            {isAdmin && (
+                                                <button
+                                                    className={styles.deleteBtn}
+                                                    onClick={() => deleteBlock(b.id)}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p>{b.content}</p>
+
+                                        {/* Submission Form */}
+                                        <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
+                                            <label style={{ display: "block", fontWeight: "600", marginBottom: "8px", fontSize: "14px" }}>
+                                                Your Answer:
+                                            </label>
+                                            <textarea
+                                                className={styles.textarea}
+                                                placeholder="Type your answer here..."
+                                                value={answers[b.id] || ""}
+                                                onChange={(e) => setAnswers({ ...answers, [b.id]: e.target.value })}
+                                                rows={4}
+                                                style={{ marginBottom: "12px" }}
                                             />
-                                        ))}
+                                            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                                <button
+                                                    className={styles.addBtn}
+                                                    onClick={() => submitAnswer(b.id)}
+                                                    disabled={submitting[b.id]}
+                                                    style={{ margin: 0 }}
+                                                >
+                                                    {submitting[b.id] ? "Submitting..." : submissions[b.id] ? "Update Answer" : "Submit Answer"}
+                                                </button>
+                                                {submissions[b.id] && (
+                                                    <span style={{ fontSize: "13px", color: "#34c759", fontWeight: "500" }}>
+                                                        ✓ Submitted {new Date(submissions[b.id].submitted_at).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </SortableContext>
-                            </DndContext>
+                                ))}
+                            </div>
 
-
-                            {/* ADD BLOCK - Admin and Teachers */}
-                            {canEdit && (
+                            {/* ADD BLOCK - Admin Only */}
+                            {isAdmin && (
                                 <div className={styles.addBlock}>
                                     <h3>Add Problem</h3>
                                     <input

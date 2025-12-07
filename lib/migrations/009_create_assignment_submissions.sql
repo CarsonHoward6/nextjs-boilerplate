@@ -19,6 +19,12 @@ CREATE INDEX IF NOT EXISTS idx_submissions_assignment ON assignment_submissions(
 -- Enable RLS
 ALTER TABLE assignment_submissions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own submissions" ON assignment_submissions;
+DROP POLICY IF EXISTS "Users can insert own submissions" ON assignment_submissions;
+DROP POLICY IF EXISTS "Users can update own submissions" ON assignment_submissions;
+DROP POLICY IF EXISTS "Teachers can view course submissions" ON assignment_submissions;
+
 -- Policy: Users can view their own submissions
 CREATE POLICY "Users can view own submissions"
     ON assignment_submissions
@@ -60,6 +66,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS assignment_submission_updated_at ON assignment_submissions;
 
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER assignment_submission_updated_at
