@@ -247,17 +247,6 @@ export default function AdminPage() {
             }
             setCourses(coursesData || []);
 
-            // Fetch sections from database (course pages stored as sections)
-            const { data: sectionsData, error: sectionsError } = await supabase
-                .from("section")
-                .select("id, title, course_id, year, semester")
-                .order("course_id", { ascending: true });
-
-            if (sectionsError) {
-                console.error("Error fetching sections:", sectionsError);
-            }
-            setSections(sectionsData || []);
-
             // Fetch login notifications
             await fetchLoginNotifications();
 
