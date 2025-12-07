@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { getSupabase } from "@/lib/supabase";
@@ -25,13 +25,7 @@ export default function NotificationsPage() {
         }
     }, [user, loading, router]);
 
-    useEffect(() => {
-        if (user) {
-            fetchNotifications();
-        }
-    }, [user]);
-
-    async function fetchNotifications() {
+    const fetchNotifications = useCallback(async () => {
         if (!user) return;
 
         const supabase = getSupabase();
@@ -49,7 +43,13 @@ export default function NotificationsPage() {
         }
 
         setLoadingNotifications(false);
-    }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            fetchNotifications();
+        }
+    }, [user, fetchNotifications]);
 
     async function markAsRead(id: string) {
         const supabase = getSupabase();
@@ -223,7 +223,7 @@ export default function NotificationsPage() {
                                 No notifications yet
                             </p>
                             <p style={{ fontSize: "14px" }}>
-                                When you get notifications, they'll show up here
+                                When you get notifications, they&apos;ll show up here
                             </p>
                         </div>
                     ) : (

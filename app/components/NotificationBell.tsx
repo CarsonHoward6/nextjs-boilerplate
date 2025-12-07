@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import "./notificationBell.css";
 
@@ -16,6 +17,7 @@ interface Notification {
 
 export default function NotificationBell() {
     const { user } = useAuth();
+    const router = useRouter();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -124,7 +126,7 @@ export default function NotificationBell() {
         }
 
         if (notification.link) {
-            window.location.href = notification.link;
+            router.push(notification.link);
         }
 
         setShowDropdown(false);

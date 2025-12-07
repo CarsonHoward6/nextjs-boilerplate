@@ -3,13 +3,11 @@ import { useState } from "react";
 import { getSupabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLoading } from "@/app/context/LoadingContext";
 
 export default function LoginPage() {
     const [emailOrUsername, setEmailOrUsername] = useState("");
     const [password, setPassword] = useState("");
     const router = useRouter();
-    const { startLoading, stopLoading } = useLoading();
 
     async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
