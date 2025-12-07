@@ -49,11 +49,10 @@ export default function AdminPage() {
     const [loadingData, setLoadingData] = useState(true);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [showRoleModal, setShowRoleModal] = useState(false);
-    const [showSectionModal, setShowSectionModal] = useState(false);
+    const [showCourseModal, setShowCourseModal] = useState(false);
     const [selectedRole, setSelectedRole] = useState<UserRole>("student");
-    const [selectedSection, setSelectedSection] = useState<string>("");
-    const [selectedSectionRole, setSelectedSectionRole] = useState<UserRole>("student");
-    const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+    const [selectedCourse, setSelectedCourse] = useState<string>("");
+    const [selectedCourseRole, setSelectedCourseRole] = useState<UserRole>("student");
     const [error, setError] = useState<string | null>(null);
 
     // Submissions state
@@ -245,7 +244,6 @@ export default function AdminPage() {
 
             if (coursesError) {
                 console.error("Error fetching courses:", coursesError);
-                setError("Failed to load courses. Make sure to run: npx tsx scripts/seed-course-sections.ts");
             }
             setCourses(coursesData || []);
 
@@ -257,7 +255,6 @@ export default function AdminPage() {
 
             if (sectionsError) {
                 console.error("Error fetching sections:", sectionsError);
-                setError("Failed to load course sections. Make sure to run: npx tsx scripts/seed-course-sections.ts");
             }
             setSections(sectionsData || []);
 
@@ -294,7 +291,14 @@ export default function AdminPage() {
     }, [user, fetchLoginNotifications, ADMIN_EMAIL]);
 
     async function addRole(userId: string, role: UserRole) {
-        const userEmail = users.find(u => u.id === userId)?.email;
+        const user = users.find(u => u.id === userId);
+        const userEmail = user?.email;
+
+        // Check if user already has this role
+        if (user?.roles.includes(role)) {
+            alert(`User already has the ${role} role`);
+            return;
+        }
 
         // Ensure user_profile exists
         const profileResponse = await fetch("/api/admin/profiles", {
@@ -340,68 +344,6 @@ export default function AdminPage() {
         }
     }
 
-    async function assignSection(userId: string, sectionId: string, role: UserRole) {
-        console.log("Assigning section:", { userId, sectionId, role });
-
-        const userEmail = users.find(u => u.id === userId)?.email;
-
-        // Ensure profile exists
-        const profileResponse = await fetch("/api/admin/profiles", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, email: userEmail })
-        });
-
-        if (!profileResponse.ok) {
-            const errorData = await profileResponse.json();
-            alert("Error creating user profile: " + (errorData.details || errorData.error));
-            return;
-        }
-
-        // Get section and course details for notification
-        const section = sections.find(s => s.id === sectionId);
-        const course = courses.find(c => c.id === section?.course_id);
-
-        // Assign section via API (which also handles notifications)
-        const response = await fetch("/api/admin/sections", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userId,
-                sectionId,
-                role,
-                userEmail,
-                sectionTitle: section?.title,
-                courseTitle: course?.title
-            })
-        });
-
-        if (response.ok) {
-            console.log("Successfully assigned section");
-            await fetchData();
-            setShowSectionModal(false);
-            setSelectedSection("");
-            setSelectedCourse(null);
-        } else {
-            const errorData = await response.json();
-            alert("Error assigning section: " + (errorData.details || errorData.error));
-        }
-    }
-
-    async function removeSection(userId: string, sectionId: string) {
-        const response = await fetch("/api/admin/sections", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, sectionId })
-        });
-
-        if (response.ok) {
-            await fetchData();
-        } else {
-            const errorData = await response.json();
-            alert("Error removing section: " + (errorData.details || errorData.error));
-        }
-    }
 
     async function assignCourse(userId: string, courseId: string, role: UserRole) {
         const userEmail = users.find(u => u.id === userId)?.email;
@@ -436,9 +378,8 @@ export default function AdminPage() {
         if (response.ok) {
             console.log("Successfully assigned course");
             await fetchData();
-            setShowSectionModal(false);
-            setSelectedSection("");
-            setSelectedCourse(null);
+            setShowCourseModal(false);
+            setSelectedCourse("");
         } else {
             const errorData = await response.json();
             alert("Error assigning course: " + (errorData.details || errorData.error));
@@ -546,10 +487,6 @@ export default function AdminPage() {
                                 <h3>Available Courses</h3>
                                 <p className="admin-stat-number">{courses.length}</p>
                             </div>
-                            <div className="admin-stat-card">
-                                <h3>Course Sections</h3>
-                                <p className="admin-stat-number">{sections.length}</p>
-                            </div>
                         </div>
 
                         <div className="admin-users-section">
@@ -564,7 +501,7 @@ export default function AdminPage() {
                                                 <th>Email</th>
                                                 <th>Name</th>
                                                 <th>Roles</th>
-                                                <th>Sections</th>
+                                                <th>Courses</th>
                                                 <th>Last Login</th>
                                                 <th>Joined</th>
                                             </tr>
@@ -598,7 +535,7 @@ export default function AdminPage() {
                                                         <div className="admin-sections-list">
                                                             {u.courses.length > 0 && u.courses.map(course => (
                                                                 <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
-                                                                    {course.title} (Course)
+                                                                    {course.title}
                                                                     <button
                                                                         className="admin-section-remove"
                                                                         onClick={() => removeCourse(u.id, course.id)}
@@ -608,19 +545,7 @@ export default function AdminPage() {
                                                                     </button>
                                                                 </span>
                                                             ))}
-                                                            {u.sections.length > 0 && u.sections.map(section => (
-                                                                <span key={section.id} className="admin-section-badge">
-                                                                    {section.course} - {section.title}
-                                                                    <button
-                                                                        className="admin-section-remove"
-                                                                        onClick={() => removeSection(u.id, section.id)}
-                                                                        title="Remove section"
-                                                                    >
-                                                                        ×
-                                                                    </button>
-                                                                </span>
-                                                            ))}
-                                                            {u.sections.length === 0 && u.courses.length === 0 && (
+                                                            {u.courses.length === 0 && (
                                                                 <span className="admin-empty">None</span>
                                                             )}
                                                         </div>
@@ -666,19 +591,14 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
                                             <div className="admin-assign-section">
-                                                <h4>Current Courses & Sections:</h4>
+                                                <h4>Current Courses:</h4>
                                                 <div className="admin-sections-list">
                                                     {u.courses.length > 0 && u.courses.map(course => (
                                                         <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
-                                                            {course.title} (Course)
+                                                            {course.title}
                                                         </span>
                                                     ))}
-                                                    {u.sections.length > 0 && u.sections.map(section => (
-                                                        <span key={section.id} className="admin-section-badge">
-                                                            {section.course} - {section.title}
-                                                        </span>
-                                                    ))}
-                                                    {u.sections.length === 0 && u.courses.length === 0 && (
+                                                    {u.courses.length === 0 && (
                                                         <span className="admin-empty">None</span>
                                                     )}
                                                 </div>
@@ -698,13 +618,12 @@ export default function AdminPage() {
                                                 className="admin-action-btn"
                                                 onClick={() => {
                                                     setSelectedUser(u.id);
-                                                    setSelectedCourse(null);
-                                                    setSelectedSection("");
-                                                    setSelectedSectionRole("student");
-                                                    setShowSectionModal(true);
+                                                    setSelectedCourse("");
+                                                    setSelectedCourseRole("student");
+                                                    setShowCourseModal(true);
                                                 }}
                                             >
-                                                Assign Section
+                                                Assign Course
                                             </button>
                                         </div>
                                     </div>
@@ -827,22 +746,19 @@ export default function AdminPage() {
                 </div>
             )}
 
-            {/* Section Modal */}
-            {showSectionModal && selectedUserData && (
-                <div className="admin-modal-overlay" onClick={() => setShowSectionModal(false)}>
+            {/* Course Modal */}
+            {showCourseModal && selectedUserData && (
+                <div className="admin-modal-overlay" onClick={() => setShowCourseModal(false)}>
                     <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>Assign Section to {selectedUserData.email}</h3>
+                        <h3>Assign Course to {selectedUserData.email}</h3>
                         <div className="admin-modal-content">
-                            <label>Step 1: Select Course:</label>
+                            <label>Select Course:</label>
                             <select
-                                value={selectedCourse || ""}
-                                onChange={(e) => {
-                                    setSelectedCourse(e.target.value || null);
-                                    setSelectedSection(""); // Reset section when course changes
-                                }}
+                                value={selectedCourse}
+                                onChange={(e) => setSelectedCourse(e.target.value)}
                                 className="admin-select"
                             >
-                                <option value="">Choose a course first...</option>
+                                <option value="">Choose a course...</option>
                                 {courses.map(course => (
                                     <option key={course.id} value={course.id}>
                                         {course.title}
@@ -850,70 +766,30 @@ export default function AdminPage() {
                                 ))}
                             </select>
 
-                            {selectedCourse && (
-                                <>
-                                    <label>Step 2: Select Section (Class):</label>
-                                    {sections.filter(section => section.course_id === selectedCourse).length === 0 ? (
-                                        <div style={{ padding: "12px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: "8px", marginBottom: "12px" }}>
-                                            <p style={{ margin: 0, fontSize: "14px", color: "#92400e" }}>
-                                                No sections/classes available for this course. You need to create sections in the database first.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <select
-                                                value={selectedSection}
-                                                onChange={(e) => setSelectedSection(e.target.value)}
-                                                className="admin-select"
-                                            >
-                                                <option value="">Choose a section...</option>
-                                                {sections
-                                                    .filter(section => section.course_id === selectedCourse)
-                                                    .map(section => (
-                                                        <option key={section.id} value={section.id}>
-                                                            {section.title} ({section.year} {section.semester})
-                                                        </option>
-                                                    ))}
-                                            </select>
-
-                                            <label>Role in Section:</label>
-                                            <select
-                                                value={selectedSectionRole}
-                                                onChange={(e) => setSelectedSectionRole(e.target.value as UserRole)}
-                                                className="admin-select"
-                                            >
-                                                <option value="student">Student</option>
-                                                <option value="teacher">Teacher</option>
-                                                <option value="teacher_assistant">Teacher Assistant</option>
-                                            </select>
-                                        </>
-                                    )}
-                                </>
-                            )}
+                            <label>Role in Course:</label>
+                            <select
+                                value={selectedCourseRole}
+                                onChange={(e) => setSelectedCourseRole(e.target.value as UserRole)}
+                                className="admin-select"
+                            >
+                                <option value="student">Student</option>
+                                <option value="teacher">Teacher</option>
+                                <option value="teacher_assistant">Teacher Assistant</option>
+                            </select>
                         </div>
                         <div className="admin-modal-actions">
-                            {selectedCourse && !selectedSection && (
-                                <button
-                                    className="admin-modal-btn admin-modal-btn-secondary"
-                                    onClick={() => assignCourse(selectedUser!, selectedCourse, selectedSectionRole)}
-                                    style={{ marginRight: '8px' }}
-                                >
-                                    Assign Course Only (No Section)
-                                </button>
-                            )}
                             <button
                                 className="admin-modal-btn admin-modal-btn-primary"
-                                onClick={() => assignSection(selectedUser!, selectedSection, selectedSectionRole)}
-                                disabled={!selectedSection}
+                                onClick={() => assignCourse(selectedUser!, selectedCourse, selectedCourseRole)}
+                                disabled={!selectedCourse}
                             >
-                                Assign Section
+                                Assign Course
                             </button>
                             <button
                                 className="admin-modal-btn admin-modal-btn-secondary"
                                 onClick={() => {
-                                    setShowSectionModal(false);
-                                    setSelectedSection("");
-                                    setSelectedCourse(null);
+                                    setShowCourseModal(false);
+                                    setSelectedCourse("");
                                 }}
                             >
                                 Cancel
