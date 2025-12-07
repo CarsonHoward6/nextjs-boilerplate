@@ -60,12 +60,8 @@ export default function LoginPage() {
                 });
             }
 
-            // Create login notification for user
-            await (supabase.from("notifications") as any).insert({
-                user_id: data.user.id,
-                message: `You logged in successfully`,
-                notification_type: "login"
-            });
+            // Note: Login notifications are now handled by database trigger (014_admin_user_notifications.sql)
+            // The trigger sends notifications to admin, not to the user themselves
 
             router.push("/welcome");
         }
