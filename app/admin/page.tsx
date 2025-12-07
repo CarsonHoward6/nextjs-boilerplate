@@ -16,6 +16,7 @@ interface User {
     last_sign_in_at: string | null;
     roles: UserRole[];
     sections: { id: string; title: string; course: string }[];
+    courses: { id: string; title: string }[];
 }
 
 interface Course {
@@ -181,6 +182,26 @@ export default function AdminPage() {
                             `)
                             .eq("user_id", authUser.id) as { data: SectionWithCourse[] | null };
 
+                        // Fetch course assignments (without sections)
+                        interface CourseAssignment {
+                            course_id: string;
+                            course: {
+                                id: string;
+                                title: string;
+                            }[];
+                        }
+
+                        const { data: coursesData } = await supabase
+                            .from("user_courses")
+                            .select(`
+                                course_id,
+                                course:course_id (
+                                    id,
+                                    title
+                                )
+                            `)
+                            .eq("user_id", authUser.id) as { data: CourseAssignment[] | null };
+
                         return {
                             id: authUser.id,
                             email: authUser.email || "No email",
@@ -196,7 +217,14 @@ export default function AdminPage() {
                                     title: section?.title || "",
                                     course: course?.title || ""
                                 };
-                            }).filter(s => s.id) || []
+                            }).filter(s => s.id) || [],
+                            courses: coursesData?.map(c => {
+                                const course = Array.isArray(c.course) ? c.course[0] : c.course;
+                                return {
+                                    id: course?.id || "",
+                                    title: course?.title || ""
+                                };
+                            }).filter(c => c.id) || []
                         };
                     })
                 );
@@ -266,128 +294,169 @@ export default function AdminPage() {
     }, [user, fetchLoginNotifications, ADMIN_EMAIL]);
 
     async function addRole(userId: string, role: UserRole) {
-        const supabase = getSupabase();
         const userEmail = users.find(u => u.id === userId)?.email;
 
         // Ensure user_profile exists
-        await ((supabase as any)
-            .from("user_profiles")
-            .upsert({ id: userId, email: userEmail }, { onConflict: "id" }));
+        const profileResponse = await fetch("/api/admin/profiles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, email: userEmail })
+        });
 
-        // Add role
-        const { error } = await ((supabase as any)
-            .from("user_roles")
-            .insert({ user_id: userId, role }));
+        if (!profileResponse.ok) {
+            const errorData = await profileResponse.json();
+            alert("Error creating user profile: " + (errorData.details || errorData.error));
+            return;
+        }
 
-        if (!error) {
+        // Add role via API
+        const response = await fetch("/api/admin/roles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, role })
+        });
+
+        if (response.ok) {
             await fetchData();
             setShowRoleModal(false);
         } else {
-            alert("Error adding role: " + error.message);
+            const errorData = await response.json();
+            alert("Error adding role: " + (errorData.details || errorData.error));
         }
     }
 
     async function removeRole(userId: string, role: UserRole) {
-        const supabase = getSupabase();
-        const { error } = await ((supabase as any)
-            .from("user_roles")
-            .delete()
-            .eq("user_id", userId)
-            .eq("role", role));
+        const response = await fetch("/api/admin/roles", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, role })
+        });
 
-        if (!error) {
+        if (response.ok) {
             await fetchData();
         } else {
-            alert("Error removing role: " + error.message);
+            const errorData = await response.json();
+            alert("Error removing role: " + (errorData.details || errorData.error));
         }
     }
 
     async function assignSection(userId: string, sectionId: string, role: UserRole) {
         console.log("Assigning section:", { userId, sectionId, role });
 
-        const supabase = getSupabase();
         const userEmail = users.find(u => u.id === userId)?.email;
 
         // Ensure profile exists
-        const { error: profileError } = await ((supabase as any)
-            .from("user_profiles")
-            .upsert({ id: userId, email: userEmail }, { onConflict: "id" }));
+        const profileResponse = await fetch("/api/admin/profiles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, email: userEmail })
+        });
 
-        if (profileError) {
-            console.error("Profile error:", profileError);
-            alert("Error creating user profile: " + profileError.message);
+        if (!profileResponse.ok) {
+            const errorData = await profileResponse.json();
+            alert("Error creating user profile: " + (errorData.details || errorData.error));
             return;
         }
 
-        // Assign section
-        console.log("Inserting into user_sections:", { user_id: userId, section_id: sectionId, role });
-        const { data, error } = await ((supabase as any)
-            .from("user_sections")
-            .insert({ user_id: userId, section_id: sectionId, role })
-            .select());
+        // Get section and course details for notification
+        const section = sections.find(s => s.id === sectionId);
+        const course = courses.find(c => c.id === section?.course_id);
 
-        if (error) {
-            console.error("Error assigning section:", error);
-            alert("Error assigning section: " + error.message + "\n\nDetails: " + JSON.stringify(error, null, 2));
-        } else {
-            console.log("Successfully assigned section:", data);
+        // Assign section via API (which also handles notifications)
+        const response = await fetch("/api/admin/sections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId,
+                sectionId,
+                role,
+                userEmail,
+                sectionTitle: section?.title,
+                courseTitle: course?.title
+            })
+        });
 
-            // Get section and course details for notification
-            const section = sections.find(s => s.id === sectionId);
-            const course = courses.find(c => c.id === section?.course_id);
-
-            // Create notification for the user
-            await ((supabase as any)
-                .from("notifications")
-                .insert({
-                    user_id: userId,
-                    message: `You have been assigned to ${course?.title || "a course"} - ${section?.title || "Section"} as a ${role}`,
-                    notification_type: "course_assigned",
-                    related_section_id: sectionId
-                }));
-
-            // If assigning a student, notify all teachers of that section
-            if (role === "student") {
-                const { data: teachers } = await ((supabase as any)
-                    .from("user_sections")
-                    .select("user_id")
-                    .eq("section_id", sectionId)
-                    .eq("role", "teacher"));
-
-                if (teachers && teachers.length > 0) {
-                    const teacherNotifications = teachers.map((t: any) => ({
-                        user_id: t.user_id,
-                        message: `${userEmail} has been assigned to your class: ${course?.title} - ${section?.title}`,
-                        notification_type: "student_assigned",
-                        related_user_id: userId,
-                        related_section_id: sectionId
-                    }));
-
-                    await ((supabase as any)
-                        .from("notifications")
-                        .insert(teacherNotifications));
-                }
-            }
-
+        if (response.ok) {
+            console.log("Successfully assigned section");
             await fetchData();
             setShowSectionModal(false);
             setSelectedSection("");
             setSelectedCourse(null);
+        } else {
+            const errorData = await response.json();
+            alert("Error assigning section: " + (errorData.details || errorData.error));
         }
     }
 
     async function removeSection(userId: string, sectionId: string) {
-        const supabase = getSupabase();
-        const { error } = await ((supabase as any)
-            .from("user_sections")
-            .delete()
-            .eq("user_id", userId)
-            .eq("section_id", sectionId));
+        const response = await fetch("/api/admin/sections", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, sectionId })
+        });
 
-        if (!error) {
+        if (response.ok) {
             await fetchData();
         } else {
-            alert("Error removing section: " + error.message);
+            const errorData = await response.json();
+            alert("Error removing section: " + (errorData.details || errorData.error));
+        }
+    }
+
+    async function assignCourse(userId: string, courseId: string, role: UserRole) {
+        const userEmail = users.find(u => u.id === userId)?.email;
+        const course = courses.find(c => c.id === courseId);
+
+        // Ensure profile exists
+        const profileResponse = await fetch("/api/admin/profiles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, email: userEmail })
+        });
+
+        if (!profileResponse.ok) {
+            const errorData = await profileResponse.json();
+            alert("Error creating user profile: " + (errorData.details || errorData.error));
+            return;
+        }
+
+        // Assign course via API
+        const response = await fetch("/api/admin/courses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId,
+                courseId,
+                role,
+                userEmail,
+                courseTitle: course?.title
+            })
+        });
+
+        if (response.ok) {
+            console.log("Successfully assigned course");
+            await fetchData();
+            setShowSectionModal(false);
+            setSelectedSection("");
+            setSelectedCourse(null);
+        } else {
+            const errorData = await response.json();
+            alert("Error assigning course: " + (errorData.details || errorData.error));
+        }
+    }
+
+    async function removeCourse(userId: string, courseId: string) {
+        const response = await fetch("/api/admin/courses", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, courseId })
+        });
+
+        if (response.ok) {
+            await fetchData();
+        } else {
+            const errorData = await response.json();
+            alert("Error removing course: " + (errorData.details || errorData.error));
         }
     }
 
@@ -527,20 +596,31 @@ export default function AdminPage() {
                                                     </td>
                                                     <td>
                                                         <div className="admin-sections-list">
-                                                            {u.sections.length > 0 ? (
-                                                                u.sections.map(section => (
-                                                                    <span key={section.id} className="admin-section-badge">
-                                                                        {section.course} - {section.title}
-                                                                        <button
-                                                                            className="admin-section-remove"
-                                                                            onClick={() => removeSection(u.id, section.id)}
-                                                                            title="Remove section"
-                                                                        >
-                                                                            ×
-                                                                        </button>
-                                                                    </span>
-                                                                ))
-                                                            ) : (
+                                                            {u.courses.length > 0 && u.courses.map(course => (
+                                                                <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
+                                                                    {course.title} (Course)
+                                                                    <button
+                                                                        className="admin-section-remove"
+                                                                        onClick={() => removeCourse(u.id, course.id)}
+                                                                        title="Remove course"
+                                                                    >
+                                                                        ×
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                            {u.sections.length > 0 && u.sections.map(section => (
+                                                                <span key={section.id} className="admin-section-badge">
+                                                                    {section.course} - {section.title}
+                                                                    <button
+                                                                        className="admin-section-remove"
+                                                                        onClick={() => removeSection(u.id, section.id)}
+                                                                        title="Remove section"
+                                                                    >
+                                                                        ×
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                            {u.sections.length === 0 && u.courses.length === 0 && (
                                                                 <span className="admin-empty">None</span>
                                                             )}
                                                         </div>
@@ -586,15 +666,19 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
                                             <div className="admin-assign-section">
-                                                <h4>Current Sections:</h4>
+                                                <h4>Current Courses & Sections:</h4>
                                                 <div className="admin-sections-list">
-                                                    {u.sections.length > 0 ? (
-                                                        u.sections.map(section => (
-                                                            <span key={section.id} className="admin-section-badge">
-                                                                {section.course} - {section.title}
-                                                            </span>
-                                                        ))
-                                                    ) : (
+                                                    {u.courses.length > 0 && u.courses.map(course => (
+                                                        <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
+                                                            {course.title} (Course)
+                                                        </span>
+                                                    ))}
+                                                    {u.sections.length > 0 && u.sections.map(section => (
+                                                        <span key={section.id} className="admin-section-badge">
+                                                            {section.course} - {section.title}
+                                                        </span>
+                                                    ))}
+                                                    {u.sections.length === 0 && u.courses.length === 0 && (
                                                         <span className="admin-empty">None</span>
                                                     )}
                                                 </div>
@@ -808,6 +892,15 @@ export default function AdminPage() {
                             )}
                         </div>
                         <div className="admin-modal-actions">
+                            {selectedCourse && !selectedSection && (
+                                <button
+                                    className="admin-modal-btn admin-modal-btn-secondary"
+                                    onClick={() => assignCourse(selectedUser!, selectedCourse, selectedSectionRole)}
+                                    style={{ marginRight: '8px' }}
+                                >
+                                    Assign Course Only (No Section)
+                                </button>
+                            )}
                             <button
                                 className="admin-modal-btn admin-modal-btn-primary"
                                 onClick={() => assignSection(selectedUser!, selectedSection, selectedSectionRole)}

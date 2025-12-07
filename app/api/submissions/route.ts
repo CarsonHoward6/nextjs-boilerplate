@@ -86,5 +86,59 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Get student profile for notification
+    const { data: profile } = await ((supabase as any)
+        .from("user_profiles")
+        .select("email, username")
+        .eq("id", session.user.id)
+        .single());
+
+    // Get course name for notification
+    const { data: course } = await ((supabase as any)
+        .from("course")
+        .select("title")
+        .eq("id", courseId)
+        .single());
+
+    // Find all teachers for this course via sections
+    const { data: teacherSections } = await ((supabase as any)
+        .from("user_sections")
+        .select(`
+            user_id,
+            section:section_id (
+                course_id
+            )
+        `)
+        .eq("role", "teacher"));
+
+    // Filter teachers whose sections match this course
+    const teacherIds = new Set<string>();
+    if (teacherSections) {
+        for (const ts of teacherSections) {
+            const section = Array.isArray(ts.section) ? ts.section[0] : ts.section;
+            if (section && section.course_id === courseId) {
+                teacherIds.add(ts.user_id);
+            }
+        }
+    }
+
+    // Create notifications for teachers
+    if (teacherIds.size > 0) {
+        const studentName = profile?.username || profile?.email || "A student";
+        const courseName = course?.title || "a course";
+
+        const notifications = Array.from(teacherIds).map(teacherId => ({
+            user_id: teacherId,
+            message: `${studentName} submitted Assignment ${assignmentId}, Problem ${problemId} in ${courseName}`,
+            notification_type: "assignment_submission",
+            related_user_id: session.user.id,
+            related_course_id: courseId
+        }));
+
+        await ((supabase as any)
+            .from("notifications")
+            .insert(notifications));
+    }
+
     return NextResponse.json(data);
 }
