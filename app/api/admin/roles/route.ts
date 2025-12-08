@@ -29,6 +29,21 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        // Check if this role already exists
+        const { data: existing } = await supabaseAdmin
+            .from("user_roles")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("role", role)
+            .single();
+
+        if (existing) {
+            return NextResponse.json(
+                { error: `User already has the ${role} role` },
+                { status: 409 } // 409 Conflict
+            );
+        }
+
         // Add role
         const { error } = await supabaseAdmin
             .from("user_roles")

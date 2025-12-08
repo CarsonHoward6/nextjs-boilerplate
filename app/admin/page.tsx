@@ -335,8 +335,16 @@ export default function AdminPage() {
 
 
     async function assignCourse(userId: string, courseId: string, role: UserRole) {
-        const userEmail = users.find(u => u.id === userId)?.email;
+        const user = users.find(u => u.id === userId);
+        const userEmail = user?.email;
         const course = courses.find(c => c.id === courseId);
+
+        // Check if user already has this course with this role
+        const alreadyAssigned = user?.courses.some(c => c.id === courseId);
+        if (alreadyAssigned) {
+            alert(`User already has ${course?.title || 'this course'} assigned`);
+            return;
+        }
 
         // Ensure profile exists
         const profileResponse = await fetch("/api/admin/profiles", {

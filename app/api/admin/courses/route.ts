@@ -29,6 +29,22 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        // Check if this course assignment already exists
+        const { data: existing } = await supabaseAdmin
+            .from("user_courses")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("course_id", courseId)
+            .eq("role", role)
+            .single();
+
+        if (existing) {
+            return NextResponse.json(
+                { error: "User already has this course assigned with this role" },
+                { status: 409 } // 409 Conflict
+            );
+        }
+
         // Add course assignment
         const { error } = await supabaseAdmin
             .from("user_courses")

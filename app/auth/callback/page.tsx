@@ -28,11 +28,6 @@ export default function AuthCallbackPage() {
 
                 if (data.user) {
                     setStatus("verified");
-
-                    // Redirect to login after 2 seconds
-                    setTimeout(() => {
-                        router.push("/login");
-                    }, 2000);
                 }
             } catch (err) {
                 console.error("Callback error:", err);
@@ -50,7 +45,7 @@ export default function AuthCallbackPage() {
             alignItems: "center",
             justifyContent: "center",
             minHeight: "100vh",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            background: "#667eea"
         }}>
             <div style={{
                 background: "white",
@@ -97,14 +92,29 @@ export default function AuthCallbackPage() {
                             </svg>
                         </div>
                         <h1 style={{ fontSize: "32px", marginBottom: "12px", color: "#10b981", fontWeight: "700" }}>
-                            Verified!
+                            Authorized
                         </h1>
-                        <p style={{ color: "#666", fontSize: "18px", marginBottom: "8px" }}>
+                        <p style={{ color: "#666", fontSize: "18px", marginBottom: "24px" }}>
                             Your email has been successfully verified.
                         </p>
-                        <p style={{ color: "#999", fontSize: "14px" }}>
-                            Redirecting to login page...
-                        </p>
+                        <button
+                            onClick={() => router.push("/")}
+                            style={{
+                                padding: "12px 32px",
+                                background: "#667eea",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                transition: "background 0.2s"
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = "#5568d3"}
+                            onMouseOut={(e) => e.currentTarget.style.background = "#667eea"}
+                        >
+                            Continue Home
+                        </button>
                     </>
                 )}
 
