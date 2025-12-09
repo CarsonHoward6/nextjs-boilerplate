@@ -123,120 +123,36 @@ export default function AdminPage() {
         try {
             const supabase = getSupabase();
 
-            // Fetch ALL auth users via API route
-            const response = await fetch("/api/admin/users");
-            const data = await response.json();
+            // Fetch user data with roles and courses via API (uses service role to bypass RLS)
+            const usersResponse = await fetch("/api/admin/users-data");
+            const usersData = await usersResponse.json();
 
-            if (!response.ok || data.error) {
-                console.error("Error fetching auth users:", data.error);
-                setError("Failed to load users from authentication system");
+            if (!usersResponse.ok || usersData.error) {
+                console.error("Error fetching user data:", usersData.error);
+                setError("Failed to load user data from database");
                 setUsers([]);
-            } else if (data.users) {
-                interface AuthUser {
-                    id: string;
-                    email?: string;
-                    created_at: string;
-                    last_sign_in_at?: string;
-                }
-
-                // Process all authenticated users
-                const usersWithDetails = await Promise.all(
-                    data.users.map(async (authUser: AuthUser) => {
-                        // Get profile if exists
-                        const { data: profile } = await supabase
-                            .from("user_profiles")
-                            .select("full_name")
-                            .eq("id", authUser.id)
-                            .maybeSingle() as { data: { full_name: string | null } | null };
-
-                        // Get roles
-                        const { data: rolesData } = await supabase
-                            .from("user_roles")
-                            .select("role")
-                            .eq("user_id", authUser.id) as { data: { role: string }[] | null };
-
-                        // Get sections
-                        interface SectionWithCourse {
-                            section_id: string;
-                            section: {
-                                id: string;
-                                title: string;
-                                course: {
-                                    title: string;
-                                }[];
-                            }[];
-                        }
-
-                        const { data: sectionsData } = await supabase
-                            .from("user_sections")
-                            .select(`
-                                section_id,
-                                section:section_id (
-                                    id,
-                                    title,
-                                    course:course_id (
-                                        title
-                                    )
-                                )
-                            `)
-                            .eq("user_id", authUser.id) as { data: SectionWithCourse[] | null };
-
-                        // Fetch course assignments (without sections)
-                        interface CourseAssignment {
-                            course_id: string;
-                            course: {
-                                id: string;
-                                title: string;
-                            }[];
-                        }
-
-                        const { data: coursesData } = await supabase
-                            .from("user_courses")
-                            .select(`
-                                course_id,
-                                course:course_id (
-                                    id,
-                                    title
-                                )
-                            `)
-                            .eq("user_id", authUser.id) as { data: CourseAssignment[] | null };
-
-                        return {
-                            id: authUser.id,
-                            email: authUser.email || "No email",
-                            full_name: profile?.full_name || null,
-                            created_at: authUser.created_at,
-                            last_sign_in_at: authUser.last_sign_in_at,
-                            roles: rolesData?.map(r => r.role) || [],
-                            sections: sectionsData?.map(s => {
-                                const section = Array.isArray(s.section) ? s.section[0] : s.section;
-                                const course = section?.course ? (Array.isArray(section.course) ? section.course[0] : section.course) : null;
-                                return {
-                                    id: section?.id || "",
-                                    title: section?.title || "",
-                                    course: course?.title || ""
-                                };
-                            }).filter(s => s.id) || [],
-                            courses: coursesData?.map(c => {
-                                const course = Array.isArray(c.course) ? c.course[0] : c.course;
-                                return {
-                                    id: course?.id || "",
-                                    title: course?.title || ""
-                                };
-                            }).filter(c => c.id) || []
-                        };
-                    })
-                );
+            } else if (usersData.users) {
+                // Transform API response to match existing User interface
+                const transformedUsers = usersData.users.map((apiUser: any) => ({
+                    id: apiUser.id,
+                    email: apiUser.email || "No email",
+                    full_name: apiUser.full_name || null,
+                    created_at: apiUser.created_at,
+                    last_sign_in_at: null, // Not included in users-data API
+                    roles: apiUser.roles || [],
+                    sections: [], // Sections fetched separately if needed
+                    courses: apiUser.courses || []
+                }));
 
                 // Sort by most recent first
-                usersWithDetails.sort((a, b) =>
+                transformedUsers.sort((a: User, b: User) =>
                     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
 
-                setUsers(usersWithDetails);
+                setUsers(transformedUsers);
             }
 
-            // Fetch courses from database
+            // Fetch courses
             const { data: coursesData, error: coursesError } = await supabase
                 .from("course")
                 .select("id, title")
@@ -247,29 +163,52 @@ export default function AdminPage() {
             }
             setCourses(coursesData || []);
 
-            // Fetch login notifications
+            // Fetch other data
             await fetchLoginNotifications();
-
-            // Fetch submissions if on submissions tab
             if (activeTab === 'submissions') {
                 await fetchSubmissions();
             }
 
+            setLoadingData(false);
         } catch (err) {
-            console.error("Error in fetchData:", err);
-            setError("Error loading data. Please check console for details.");
+            console.error("Error fetching admin data:", err);
+            setError("Failed to load data");
+            setLoadingData(false);
         }
-
-        setLoadingData(false);
     }, [fetchLoginNotifications, activeTab, fetchSubmissions]);
 
-    // Fetch all data
+    // Initial fetch
     useEffect(() => {
-        if (user?.email === ADMIN_EMAIL) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (user && user.email === ADMIN_EMAIL) {
             fetchData();
         }
-    }, [user, fetchData, ADMIN_EMAIL]);
+    }, [user, fetchData]);
+
+    // Realtime subscriptions for Admin
+    useEffect(() => {
+        if (!user || user.email !== ADMIN_EMAIL) return;
+
+        const supabase = getSupabase();
+        const channel = (supabase as any)
+            .channel('admin-dashboard-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles' }, () => {
+                console.log('Realtime change: user_profiles');
+                fetchData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, () => {
+                console.log('Realtime change: user_roles');
+                fetchData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'user_courses' }, () => {
+                console.log('Realtime change: user_courses');
+                fetchData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user, fetchData]);
 
     // Poll for login notifications every 30 seconds
     useEffect(() => {
@@ -277,7 +216,7 @@ export default function AdminPage() {
             const interval = setInterval(fetchLoginNotifications, 30000);
             return () => clearInterval(interval);
         }
-    }, [user, fetchLoginNotifications, ADMIN_EMAIL]);
+    }, [user, fetchLoginNotifications]);
 
     async function addRole(userId: string, role: UserRole) {
         const user = users.find(u => u.id === userId);
@@ -511,8 +450,8 @@ export default function AdminPage() {
                                                     <td>
                                                         <div className="admin-roles-list">
                                                             {u.roles.length > 0 ? (
-                                                                u.roles.map(role => (
-                                                                    <span key={role} className="admin-role-badge">
+                                                                u.roles.map((role, idx) => (
+                                                                    <span key={role + idx} className="admin-role-badge">
                                                                         {role}
                                                                         <button
                                                                             className="admin-role-remove"
@@ -530,9 +469,9 @@ export default function AdminPage() {
                                                     </td>
                                                     <td>
                                                         <div className="admin-sections-list">
-                                                            {u.courses.length > 0 && u.courses.map(course => (
-                                                                <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
-                                                                    {course.title}
+                                                            {u.courses.length > 0 && u.courses.map((course, idx) => (
+                                                                <span key={course.id || idx} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
+                                                                    {course.title || 'Untitled'}
                                                                     <button
                                                                         className="admin-section-remove"
                                                                         onClick={() => removeCourse(u.id, course.id)}
@@ -577,8 +516,8 @@ export default function AdminPage() {
                                                 <h4>Current Roles:</h4>
                                                 <div className="admin-roles-list">
                                                     {u.roles.length > 0 ? (
-                                                        u.roles.map(role => (
-                                                            <span key={role} className="admin-role-badge">
+                                                        u.roles.map((role, idx) => (
+                                                            <span key={role + idx} className="admin-role-badge">
                                                                 {role}
                                                             </span>
                                                         ))
@@ -590,9 +529,9 @@ export default function AdminPage() {
                                             <div className="admin-assign-section">
                                                 <h4>Current Courses:</h4>
                                                 <div className="admin-sections-list">
-                                                    {u.courses.length > 0 && u.courses.map(course => (
-                                                        <span key={course.id} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
-                                                            {course.title}
+                                                    {u.courses.length > 0 && u.courses.map((course, idx) => (
+                                                        <span key={course.id || idx} className="admin-section-badge" style={{ background: '#e0f2fe' }}>
+                                                            {course.title || 'Untitled'}
                                                         </span>
                                                     ))}
                                                     {u.courses.length === 0 && (
@@ -630,171 +569,94 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {activeTab === "notifications" && (
-                    <div className="admin-notifications-section">
-                        <h2>Recent Login Activity</h2>
-                        {loginNotifications.length === 0 ? (
-                            <p className="admin-empty-state">No login activity to display yet.</p>
-                        ) : (
-                            <div className="admin-notifications-list">
-                                {loginNotifications.map((notification) => (
-                                    <div key={notification.id} className="admin-notification-item">
-                                        <div className="admin-notification-icon">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                                <circle cx="12" cy="7" r="4" />
-                                            </svg>
-                                        </div>
-                                        <div className="admin-notification-content">
-                                            <p className="admin-notification-email">{notification.email}</p>
-                                            <p className="admin-notification-time">
-                                                Last login: {formatTimeAgo(notification.timestamp)}
-                                                <span style={{ marginLeft: '8px', color: '#9ca3af' }}>
-                                                    ({new Date(notification.timestamp).toLocaleString()})
-                                                </span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                {/* Role Modal */}
+                {showRoleModal && selectedUserData && (
+                    <div className="admin-modal-overlay" onClick={() => setShowRoleModal(false)}>
+                        <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+                            <h3>Add Role to {selectedUserData.email}</h3>
+                            <div className="admin-modal-content">
+                                <label>Select Role:</label>
+                                <select
+                                    value={selectedRole}
+                                    onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                                    className="admin-select"
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="teacher">Teacher</option>
+                                    <option value="teacher_assistant">Teacher Assistant</option>
+                                    <option value="admin">Admin</option>
+                                </select>
                             </div>
-                        )}
+                            <div className="admin-modal-actions">
+                                <button
+                                    className="admin-modal-btn admin-modal-btn-primary"
+                                    onClick={() => addRole(selectedUser!, selectedRole)}
+                                >
+                                    Add Role
+                                </button>
+                                <button
+                                    className="admin-modal-btn admin-modal-btn-secondary"
+                                    onClick={() => setShowRoleModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {activeTab === "submissions" && (
-                    <div className="admin-users-section">
-                        <h2>Student Assignment Submissions</h2>
-                        <p style={{ marginBottom: "20px", color: "#6e6e73" }}>
-                            All student submissions across all courses and assignments.
-                        </p>
-                        {loadingSubmissions ? (
-                            <p className="admin-empty-state">Loading submissions...</p>
-                        ) : submissions.length === 0 ? (
-                            <p className="admin-empty-state">No submissions yet.</p>
-                        ) : (
-                            <div className="admin-users-table">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Student</th>
-                                            <th>Course ID</th>
-                                            <th>Assignment ID</th>
-                                            <th>Problem ID</th>
-                                            <th>Answer Preview</th>
-                                            <th>Submitted</th>
-                                            <th>Updated</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {submissions.map((sub) => (
-                                            <tr key={sub.id}>
-                                                <td>{sub.user_profiles?.username || sub.user_profiles?.email || sub.user_id}</td>
-                                                <td>{sub.course_id}</td>
-                                                <td>{sub.assignment_id}</td>
-                                                <td>{sub.problem_id}</td>
-                                                <td style={{ maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                    {sub.answer.substring(0, 50)}{sub.answer.length > 50 ? '...' : ''}
-                                                </td>
-                                                <td>{new Date(sub.submitted_at).toLocaleString()}</td>
-                                                <td>{new Date(sub.updated_at).toLocaleString()}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                {/* Course Modal */}
+                {showCourseModal && selectedUserData && (
+                    <div className="admin-modal-overlay" onClick={() => setShowCourseModal(false)}>
+                        <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+                            <h3>Assign Course to {selectedUserData.email}</h3>
+                            <div className="admin-modal-content">
+                                <label>Select Course:</label>
+                                <select
+                                    value={selectedCourse}
+                                    onChange={(e) => setSelectedCourse(e.target.value)}
+                                    className="admin-select"
+                                >
+                                    <option value="">Choose a course...</option>
+                                    {courses.map(course => (
+                                        <option key={course.id} value={course.id}>
+                                            {course.title}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <label>Role in Course:</label>
+                                <select
+                                    value={selectedCourseRole}
+                                    onChange={(e) => setSelectedCourseRole(e.target.value as UserRole)}
+                                    className="admin-select"
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="teacher">Teacher</option>
+                                    <option value="teacher_assistant">Teacher Assistant</option>
+                                </select>
                             </div>
-                        )}
+                            <div className="admin-modal-actions">
+                                <button
+                                    className="admin-modal-btn admin-modal-btn-primary"
+                                    onClick={() => assignCourse(selectedUser!, selectedCourse, selectedCourseRole)}
+                                    disabled={!selectedCourse}
+                                >
+                                    Assign Course
+                                </button>
+                                <button
+                                    className="admin-modal-btn admin-modal-btn-secondary"
+                                    onClick={() => {
+                                        setShowCourseModal(false);
+                                        setSelectedCourse("");
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
-
-            {/* Role Modal */}
-            {showRoleModal && selectedUserData && (
-                <div className="admin-modal-overlay" onClick={() => setShowRoleModal(false)}>
-                    <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>Add Role to {selectedUserData.email}</h3>
-                        <div className="admin-modal-content">
-                            <label>Select Role:</label>
-                            <select
-                                value={selectedRole}
-                                onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                                className="admin-select"
-                            >
-                                <option value="student">Student</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="teacher_assistant">Teacher Assistant</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div className="admin-modal-actions">
-                            <button
-                                className="admin-modal-btn admin-modal-btn-primary"
-                                onClick={() => addRole(selectedUser!, selectedRole)}
-                            >
-                                Add Role
-                            </button>
-                            <button
-                                className="admin-modal-btn admin-modal-btn-secondary"
-                                onClick={() => setShowRoleModal(false)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Course Modal */}
-            {showCourseModal && selectedUserData && (
-                <div className="admin-modal-overlay" onClick={() => setShowCourseModal(false)}>
-                    <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>Assign Course to {selectedUserData.email}</h3>
-                        <div className="admin-modal-content">
-                            <label>Select Course:</label>
-                            <select
-                                value={selectedCourse}
-                                onChange={(e) => setSelectedCourse(e.target.value)}
-                                className="admin-select"
-                            >
-                                <option value="">Choose a course...</option>
-                                {courses.map(course => (
-                                    <option key={course.id} value={course.id}>
-                                        {course.title}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <label>Role in Course:</label>
-                            <select
-                                value={selectedCourseRole}
-                                onChange={(e) => setSelectedCourseRole(e.target.value as UserRole)}
-                                className="admin-select"
-                            >
-                                <option value="student">Student</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="teacher_assistant">Teacher Assistant</option>
-                            </select>
-                        </div>
-                        <div className="admin-modal-actions">
-                            <button
-                                className="admin-modal-btn admin-modal-btn-primary"
-                                onClick={() => assignCourse(selectedUser!, selectedCourse, selectedCourseRole)}
-                                disabled={!selectedCourse}
-                            >
-                                Assign Course
-                            </button>
-                            <button
-                                className="admin-modal-btn admin-modal-btn-secondary"
-                                onClick={() => {
-                                    setShowCourseModal(false);
-                                    setSelectedCourse("");
-                                }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+            );
 }

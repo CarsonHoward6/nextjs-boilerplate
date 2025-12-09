@@ -1,0 +1,2 @@
+TRUNCATE TABLE user_roles CASCADE;
+TRUNCATE TABLE user_courses CASCADE;
